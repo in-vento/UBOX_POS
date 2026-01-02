@@ -1,0 +1,442 @@
+{
+  "entities": {
+    "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Order",
+      "type": "object",
+      "description": "Represents an order placed in the restaurant.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Order entity."
+        },
+        "tableId": {
+          "type": "string",
+          "description": "Reference to Table. (Relationship: Table 1:N Order)"
+        },
+        "waiterId": {
+          "type": "string",
+          "description": "Reference to User (waiter). (Relationship: User 1:N Order)"
+        },
+        "customerId": {
+          "type": "string",
+          "description": "Reference to Customer. (Relationship: Customer 1:N Order). Can be null if the customer is not registered."
+        },
+        "orderDate": {
+          "type": "string",
+          "description": "Date and time when the order was placed.",
+          "format": "date-time"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Total amount of the order."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the order (e.g., pending, paid, cancelled)."
+        }
+      },
+      "required": [
+        "id",
+        "tableId",
+        "waiterId",
+        "orderDate",
+        "totalAmount",
+        "status"
+      ]
+    },
+    "OrderItem": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OrderItem",
+      "type": "object",
+      "description": "Represents an item within an order.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the OrderItem entity."
+        },
+        "orderId": {
+          "type": "string",
+          "description": "Reference to Order. (Relationship: Order 1:N OrderItem)"
+        },
+        "productId": {
+          "type": "string",
+          "description": "Reference to Product. (Relationship: Product 1:N OrderItem)"
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Quantity of the product in the order item."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the product in the order item."
+        }
+      },
+      "required": [
+        "id",
+        "orderId",
+        "productId",
+        "quantity",
+        "price"
+      ]
+    },
+    "Product": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Product",
+      "type": "object",
+      "description": "Represents a product sold in the restaurant.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Product entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the product."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the product."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the product."
+        },
+        "categoryId": {
+          "type": "string",
+          "description": "Reference to Category. (Relationship: Category 1:N Product)"
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the product image.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "price",
+        "categoryId"
+      ]
+    },
+    "Category": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Category",
+      "type": "object",
+      "description": "Represents a category of products.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Category entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the category."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the category."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the system (waiter, cashier, admin, etc.).",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the user."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role of the user (e.g., waiter, cashier, admin)."
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Phone number of the user."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "role"
+      ]
+    },
+    "Customer": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Customer",
+      "type": "object",
+      "description": "Represents a customer of the restaurant.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Customer entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "First name of the customer."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "Last name of the customer."
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the customer.",
+          "format": "email"
+        },
+        "phoneNumber": {
+          "type": "string",
+          "description": "Phone number of the customer."
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName"
+      ]
+    },
+    "License": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "License",
+      "type": "object",
+      "description": "Represents a license for using the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the License entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N License)"
+        },
+        "startDate": {
+          "type": "string",
+          "description": "Start date of the license.",
+          "format": "date-time"
+        },
+        "expirationDate": {
+          "type": "string",
+          "description": "Expiration date of the license.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the license (e.g., active, expired)."
+        },
+        "planId": {
+          "type": "string",
+          "description": "Reference to Plan. (Relationship: Plan 1:N License)"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "startDate",
+        "expirationDate",
+        "status",
+        "planId"
+      ]
+    },
+    "Plan": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Plan",
+      "type": "object",
+      "description": "Represents a subscription plan.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Plan entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the plan (e.g., Basic, Premium)."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the plan."
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the plan."
+        },
+        "features": {
+          "type": "array",
+          "description": "A list of features included in the plan.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "price"
+      ]
+    },
+    "Payment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Payment",
+      "type": "object",
+      "description": "Represents a payment made by a customer.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Payment entity."
+        },
+        "licenseId": {
+          "type": "string",
+          "description": "Reference to License. (Relationship: License 1:N Payment)"
+        },
+        "paymentDate": {
+          "type": "string",
+          "description": "Date of the payment.",
+          "format": "date-time"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Amount of the payment."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Method of payment (e.g., credit card, cash)."
+        },
+        "transactionId": {
+          "type": "string",
+          "description": "Transaction ID from the payment gateway (e.g., Stripe)."
+        }
+      },
+      "required": [
+        "id",
+        "licenseId",
+        "paymentDate",
+        "amount",
+        "paymentMethod"
+      ]
+    },
+    "Table": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Table",
+      "type": "object",
+      "description": "Represents a table in the restaurant.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Table entity."
+        },
+        "tableNumber": {
+          "type": "string",
+          "description": "Table number or identifier."
+        },
+        "capacity": {
+          "type": "number",
+          "description": "Maximum capacity of the table."
+        },
+        "location": {
+          "type": "string",
+          "description": "Location of the table in the restaurant (e.g., indoor, outdoor)."
+        }
+      },
+      "required": [
+        "id",
+        "tableNumber"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "Stores user profiles."
+    },
+    "/users/{userId}/licenses/{licenseId}": {
+      "schema": {
+        "$ref": "#/entities/License"
+      },
+      "description": "Stores licenses associated with a user."
+    },
+    "/licenses/{licenseId}/payments/{paymentId}": {
+      "schema": {
+        "$ref": "#/entities/Payment"
+      },
+      "description": "Stores payments for a specific license."
+    },
+    "/orders/{orderId}": {
+      "schema": {
+        "$ref": "#/entities/Order"
+      },
+      "description": "Stores order information."
+    },
+    "/orders/{orderId}/orderItems/{orderItemId}": {
+      "schema": {
+        "$ref": "#/entities/OrderItem"
+      },
+      "description": "Stores items for a specific order."
+    },
+    "/products/{productId}": {
+      "schema": {
+        "$ref": "#/entities/Product"
+      },
+      "description": "Stores product information."
+    },
+    "/categories/{categoryId}": {
+      "schema": {
+        "$ref": "#/entities/Category"
+      },
+      "description": "Stores product categories."
+    },
+    "/customers/{customerId}": {
+      "schema": {
+        "$ref": "#/entities/Customer"
+      },
+      "description": "Stores customer information."
+    },
+    "/plans/{planId}": {
+      "schema": {
+        "$ref": "#/entities/Plan"
+      },
+      "description": "Stores subscription plans."
+    },
+    "/tables/{tableId}": {
+      "schema": {
+        "$ref": "#/entities/Table"
+      },
+      "description": "Stores table information."
+    },
+    "/roles_admin/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "Collection for admin roles. Existence of a document grants admin privileges."
+    }
+  }
+}
+    

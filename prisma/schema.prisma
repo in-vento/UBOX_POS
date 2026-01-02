@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String   @id @default(cuid())
+  name                String
+  email               String?  @unique
+  role                String // "Admin", "Mozo", "Cajero", "Barman", "Jefe"
+  status              String   @default("Active") // "Active", "Inactive"
+  pin                 String?
+  password            String? // For Monitor role login
+  phone               String?
+  avatarUrl           String?
+  commission          Float?
+  failedLoginAttempts Int      @default(0)
+  isLocked            Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  logs                Log[]
+  orders              Order[]  @relation("WaiterOrders")
+}
+
+model MonitorConfig {
+  id              String   @id @default("default")
+  isActive        Boolean  @default(true)
+  popupDuration   Int      @default(3000) // in milliseconds
+  soundEnabled    Boolean  @default(true)
+  localAccessOnly Boolean  @default(false)
+  showDashboard   Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+}
+
+model Product {
+  id               String      @id @default(cuid())
+  name             String
+  price            Float
+  category         String // 'Bebida', 'Comida', 'Servicio', 'Otro'
+  stock            Int         @default(0)
+  isCommissionable Boolean     @default(false)
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  orderItems       OrderItem[]
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  customId     String?     @unique // Custom ID format: XX-NNNNNN (e.g., JU-000001)
+  waiterId     String?
+  waiter       User?       @relation("WaiterOrders", fields: [waiterId], references: [id])
+  customer     String      @default("Cliente General")
+  status       String      @default("Pending") // 'Pending', 'Completed', 'Cancelled'
+  totalAmount  Float       @default(0)
+  paidAmount   Float       @default(0)
+  masajistaIds String? // JSON array of masajista IDs
+  editedBy     String? // Name of the admin who last edited or cancelled the order
+  cancelReason String? // Reason why the order was cancelled
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  items        OrderItem[]
+  payments     Payment[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  price     Float // Price at the time of order
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount    Float
+  method    String // 'Efectivo', 'Yape / Plin', 'Tarjeta'
+  cashier   String? // Name of the cashier who processed the payment
+  timestamp DateTime @default(now())
+}
+
+model Log {
+  id        String   @id @default(cuid())
+  action    String
+  details   String?
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  timestamp DateTime @default(now())
+}
+
+model OrderCounter {
+  id    String @id @default(cuid())
+  date  String @unique // Format: YYYY-MM-DD
+  count Int    @default(0)
+}
+
+model Printer {
+  id        String   @id @default(cuid())
+  name      String
+  ip        String
+  areas     String // JSON array: ["Caja", "Barra", "Cocina"]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

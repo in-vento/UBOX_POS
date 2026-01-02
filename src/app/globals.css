@@ -1,0 +1,101 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 10% 99%; /* Almost white with a cool tone */
+    --foreground: 222 84% 5%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 84% 5%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 84% 5%;
+    --primary: 221 83% 53%; /* A strong, professional blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 220 13% 91%; /* A slightly darker gray for muted backgrounds */
+    --muted-foreground: 216 12% 47%;
+    --accent: 260 100% 95%; /* A very light violet for accents */
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 13% 85%;
+    --input: 220 13% 88%;
+    --ring: 221 83% 53%;
+    --radius: 0.8rem;
+    --chart-1: 221 83% 53%; /* Primary Blue */
+    --chart-2: 260 85% 66%; /* A pleasant purple */
+    --chart-3: 160 70% 40%; /* A teal/green */
+    --chart-4: 340 82% 60%; /* A soft red/pink */
+    --chart-5: 45 90% 55%;  /* An orange/yellow */
+  }
+
+  .dark {
+    --background: 222 84% 5%;
+    --foreground: 210 40% 98%;
+    --card: 222 84% 5%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 84% 5%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%; /* Lighter blue for dark mode */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 22%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 27%;
+    --input: 217 33% 27%;
+    --ring: 217 91% 60%;
+    --chart-1: 217 91% 60%;
+    --chart-2: 260 85% 70%;
+    --chart-3: 160 70% 50%;
+    --chart-4: 340 82% 65%;
+    --chart-5: 45 90% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body;
+  }
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-area, #printable-area *,
+  #printable-order-details, #printable-order-details *,
+  #printable-order-details-main, #printable-order-details-main *,
+  #printable-bar-inventory, #printable-bar-inventory *,
+  #printable-shift-report, #printable-shift-report * {
+    visibility: visible;
+  }
+  
+  #printable-area tr[data-state='unchecked'] {
+    display: none;
+  }
+
+  #printable-area, #printable-order-details, #printable-order-details-main, #printable-bar-inventory, #printable-shift-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  
+  /* Hide checkboxes when printing */
+  #printable-area th:first-child,
+  #printable-area td:first-child {
+    display: none;
+  }
+}
