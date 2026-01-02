@@ -47,7 +47,7 @@ function startNextServer() {
         const env = {
             ...process.env,
             PORT: '9009',
-            HOSTNAME: '127.0.0.1',
+            HOSTNAME: '0.0.0.0',
             NODE_ENV: 'production',
             DATABASE_URL: `file:${dbPath}`,
             ELECTRON_RUN_AS_NODE: '1',
@@ -249,26 +249,50 @@ ipcMain.handle('get-hwid', async () => {
 });
 
 ipcMain.handle('start-tunnel', async (event, port) => {
+    const targetPort = port || 9009;
+    log.info(`Attempting to start tunnel on port ${targetPort}...`);
+
     try {
         if (tunnel) {
+            log.info('Closing existing tunnel...');
             await tunnel.close();
         }
 
+        // Verify local server is actually responding before starting tunnel
+        try {
+            const http = require('http');
+            await new Promise((resolve, reject) => {
+                const req = http.get(`http://127.0.0.1:${targetPort}`, (res) => {
+                    resolve();
+                });
+                req.on('error', reject);
+                req.end();
+            });
+            log.info(`Local server on port ${targetPort} is reachable.`);
+        } catch (e) {
+            log.warn(`Local server on port ${targetPort} is NOT reachable yet: ${e.message}`);
+        }
+
         tunnel = await localtunnel({
-            port: port || 9009,
+            port: targetPort,
+            local_host: '127.0.0.1',
             subdomain: `ubox-pos-${Math.random().toString(36).substring(2, 8)}`
         });
 
-        console.log(`Tunnel started at: ${tunnel.url}`);
+        log.info(`Tunnel established successfully at: ${tunnel.url}`);
 
         tunnel.on('close', () => {
-            console.log('Tunnel closed');
+            log.info('Tunnel connection closed');
             tunnel = null;
+        });
+
+        tunnel.on('error', (err) => {
+            log.error('Tunnel error:', err);
         });
 
         return { url: tunnel.url };
     } catch (err) {
-        console.error('Failed to start tunnel:', err);
+        log.error('Failed to establish tunnel:', err);
         return { error: err.message };
     }
 });
