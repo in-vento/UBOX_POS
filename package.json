@@ -1,6 +1,6 @@
 {
   "name": "nextn",
-  "version": "0.3.1",
+  "version": "0.3.3",
   "description": "Ubox POS - Point of Sale System",
   "author": "Ubox Team",
   "main": "electron/main.js",
@@ -94,7 +94,8 @@
           ]
         }
       ],
-      "icon": "src/app/icon.png"
+      "icon": "src/app/icon.png",
+      "artifactName": "Ubox-POS-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
