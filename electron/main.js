@@ -44,65 +44,44 @@ function startNextServer() {
             }
         }
 
-        // Run Database Migrations
+        // Run Database Schema Fix (Direct SQL)
         if (!isDev) {
             try {
-                log.info('Checking for pending database migrations...');
-                const prismaPath = path.join(standalonePath, 'node_modules', '.bin', 'prisma');
-                const schemaPath = path.join(standalonePath, 'prisma', 'schema.prisma');
+                log.info('Ensuring database schema is up to date...');
+                const { PrismaClient } = require('@prisma/client');
+                const prisma = new PrismaClient({
+                    datasources: {
+                        db: {
+                            url: `file:${dbPath}`,
+                        },
+                    },
+                });
 
-                // Ensure prisma binary exists
-                // On Windows it might be prisma.cmd
-                const prismaCmd = process.platform === 'win32' ? `${prismaPath}.cmd` : prismaPath;
+                const runQuery = async (query) => {
+                    try {
+                        await prisma.$executeRawUnsafe(query);
+                        log.info(`Executed: ${query}`);
+                    } catch (e) {
+                        // Ignore "duplicate column" errors, log others
+                        if (e.message.includes('duplicate column') || e.message.includes('already exists')) {
+                            log.info(`Skipped (already exists): ${query}`);
+                        } else {
+                            log.warn(`Failed to execute: ${query}. Error: ${e.message}`);
+                        }
+                    }
+                };
 
-                if (fs.existsSync(prismaCmd) && fs.existsSync(schemaPath)) {
-                    log.info(`Running migrations using schema: ${schemaPath}`);
+                // Fix for v0.3.7: Add missing columns for Products
+                await runQuery("ALTER TABLE Product ADD COLUMN commissionPercentage REAL DEFAULT 0");
+                await runQuery("ALTER TABLE Product ADD COLUMN isCombo BOOLEAN DEFAULT 0");
+                await runQuery("ALTER TABLE Product ADD COLUMN isCommissionable BOOLEAN DEFAULT 0");
+                await runQuery("ALTER TABLE Product ADD COLUMN stock INTEGER DEFAULT 0");
 
-                    // We need to set the DATABASE_URL environment variable for the migration command
-                    const migrationEnv = {
-                        ...process.env,
-                        DATABASE_URL: `file:${dbPath}`
-                    };
-
-                    await new Promise((resolve, reject) => {
-                        const migrateProcess = spawn(prismaCmd, ['migrate', 'deploy', '--schema', schemaPath], {
-                            env: migrationEnv,
-                            shell: true
-                        });
-
-                        migrateProcess.stdout.on('data', (data) => {
-                            log.info(`Migration output: ${data}`);
-                        });
-
-                        migrateProcess.stderr.on('data', (data) => {
-                            log.error(`Migration error: ${data}`);
-                        });
-
-                        migrateProcess.on('close', (code) => {
-                            if (code === 0) {
-                                log.info('Migrations completed successfully.');
-                                resolve();
-                            } else {
-                                log.error(`Migration process exited with code ${code}`);
-                                // We resolve anyway to allow the app to try starting, 
-                                // but ideally we should handle this error.
-                                resolve();
-                            }
-                        });
-
-                        migrateProcess.on('error', (err) => {
-                            log.error('Failed to spawn migration process:', err);
-                            resolve();
-                        });
-                    });
-                } else {
-                    log.warn('Prisma binary or schema not found. Skipping migrations.');
-                    log.info(`Prisma path checked: ${prismaCmd}`);
-                    log.info(`Schema path checked: ${schemaPath}`);
-                }
+                await prisma.$disconnect();
+                log.info('Database schema verification completed.');
 
             } catch (err) {
-                log.error('Failed to run migrations:', err);
+                log.error('Failed to patch database schema:', err);
             }
         }
 
