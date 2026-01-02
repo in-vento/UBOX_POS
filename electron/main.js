@@ -19,7 +19,7 @@ const isDev = !app.isPackaged;
 const userDataPath = app.getPath('userData');
 
 function startNextServer() {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
         const resourcesPath = process.resourcesPath;
         const standalonePath = isDev
             ? path.join(__dirname, '..', '.next', 'standalone')
@@ -41,6 +41,68 @@ function startNextServer() {
                 }
             } catch (err) {
                 console.error('Failed to initialize database:', err);
+            }
+        }
+
+        // Run Database Migrations
+        if (!isDev) {
+            try {
+                log.info('Checking for pending database migrations...');
+                const prismaPath = path.join(standalonePath, 'node_modules', '.bin', 'prisma');
+                const schemaPath = path.join(standalonePath, 'prisma', 'schema.prisma');
+
+                // Ensure prisma binary exists
+                // On Windows it might be prisma.cmd
+                const prismaCmd = process.platform === 'win32' ? `${prismaPath}.cmd` : prismaPath;
+
+                if (fs.existsSync(prismaCmd) && fs.existsSync(schemaPath)) {
+                    log.info(`Running migrations using schema: ${schemaPath}`);
+
+                    // We need to set the DATABASE_URL environment variable for the migration command
+                    const migrationEnv = {
+                        ...process.env,
+                        DATABASE_URL: `file:${dbPath}`
+                    };
+
+                    await new Promise((resolve, reject) => {
+                        const migrateProcess = spawn(prismaCmd, ['migrate', 'deploy', '--schema', schemaPath], {
+                            env: migrationEnv,
+                            shell: true
+                        });
+
+                        migrateProcess.stdout.on('data', (data) => {
+                            log.info(`Migration output: ${data}`);
+                        });
+
+                        migrateProcess.stderr.on('data', (data) => {
+                            log.error(`Migration error: ${data}`);
+                        });
+
+                        migrateProcess.on('close', (code) => {
+                            if (code === 0) {
+                                log.info('Migrations completed successfully.');
+                                resolve();
+                            } else {
+                                log.error(`Migration process exited with code ${code}`);
+                                // We resolve anyway to allow the app to try starting, 
+                                // but ideally we should handle this error.
+                                resolve();
+                            }
+                        });
+
+                        migrateProcess.on('error', (err) => {
+                            log.error('Failed to spawn migration process:', err);
+                            resolve();
+                        });
+                    });
+                } else {
+                    log.warn('Prisma binary or schema not found. Skipping migrations.');
+                    log.info(`Prisma path checked: ${prismaCmd}`);
+                    log.info(`Schema path checked: ${schemaPath}`);
+                }
+
+            } catch (err) {
+                log.error('Failed to run migrations:', err);
             }
         }
 
