@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/page-header';
 import {
     Table,
@@ -27,6 +28,10 @@ type Log = {
 };
 
 export default function LogsPage() {
+    const searchParams = useSearchParams();
+    const role = searchParams.get('role');
+    const isSuperAdmin = role === 'Super Administrador' || role === 'admin' || role === 'boss';
+
     const [logs, setLogs] = useState<Log[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -38,12 +43,19 @@ export default function LogsPage() {
                 const data = await response.json();
                 setLogs(data);
             }
-        } catch (error) {
-            console.error('Failed to fetch logs', error);
         } finally {
             setIsLoading(false);
         }
     };
+
+    const filteredLogs = useMemo(() => {
+        return logs.filter(log => {
+            if (log.action === 'STOCK_ADJUST') {
+                return isSuperAdmin;
+            }
+            return true;
+        });
+    }, [logs, isSuperAdmin]);
 
     useEffect(() => {
         fetchLogs();
@@ -81,8 +93,8 @@ export default function LogsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {logs.length > 0 ? (
-                                    logs.map((log) => (
+                                {filteredLogs.length > 0 ? (
+                                    filteredLogs.map((log) => (
                                         <TableRow key={log.id}>
                                             <TableCell className="whitespace-nowrap">
                                                 {new Date(log.timestamp).toLocaleString()}

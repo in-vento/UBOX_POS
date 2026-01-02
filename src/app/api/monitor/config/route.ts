@@ -18,6 +18,8 @@ export async function GET() {
                     soundEnabled: true,
                     localAccessOnly: false,
                     showDashboard: true,
+                    publicAccessEnabled: false,
+                    publicUrl: null,
                 }
             });
         }
@@ -32,7 +34,7 @@ export async function GET() {
 export async function PUT(request: Request) {
     try {
         const body = await request.json();
-        const { isActive, popupDuration, soundEnabled, localAccessOnly, showDashboard } = body;
+        const { isActive, popupDuration, soundEnabled, localAccessOnly, showDashboard, publicAccessEnabled, publicUrl } = body;
 
         const config = await prisma.monitorConfig.upsert({
             where: { id: 'default' },
@@ -42,6 +44,8 @@ export async function PUT(request: Request) {
                 soundEnabled,
                 localAccessOnly,
                 showDashboard,
+                publicAccessEnabled,
+                publicUrl,
             },
             create: {
                 id: 'default',
@@ -50,6 +54,8 @@ export async function PUT(request: Request) {
                 soundEnabled: soundEnabled ?? true,
                 localAccessOnly: localAccessOnly ?? false,
                 showDashboard: showDashboard ?? true,
+                publicAccessEnabled: publicAccessEnabled ?? false,
+                publicUrl: publicUrl ?? null,
             }
         });
 

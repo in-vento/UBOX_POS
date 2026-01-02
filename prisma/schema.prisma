@@ -30,25 +30,40 @@ model User {
 }
 
 model MonitorConfig {
-  id              String   @id @default("default")
-  isActive        Boolean  @default(true)
-  popupDuration   Int      @default(3000) // in milliseconds
-  soundEnabled    Boolean  @default(true)
-  localAccessOnly Boolean  @default(false)
-  showDashboard   Boolean  @default(true)
-  updatedAt       DateTime @updatedAt
+  id                  String   @id @default("default")
+  isActive            Boolean  @default(true)
+  popupDuration       Int      @default(3000) // in milliseconds
+  soundEnabled        Boolean  @default(true)
+  localAccessOnly     Boolean  @default(false)
+  showDashboard       Boolean  @default(true)
+  publicAccessEnabled Boolean  @default(false)
+  publicUrl           String?
+  updatedAt           DateTime @updatedAt
 }
 
 model Product {
-  id               String      @id @default(cuid())
-  name             String
-  price            Float
-  category         String // 'Bebida', 'Comida', 'Servicio', 'Otro'
-  stock            Int         @default(0)
-  isCommissionable Boolean     @default(false)
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
-  orderItems       OrderItem[]
+  id                   String      @id @default(cuid())
+  name                 String
+  price                Float
+  category             String // 'Bebida', 'Comida', 'Servicio', 'Otro'
+  stock                Int         @default(0)
+  isCommissionable     Boolean     @default(false)
+  commissionPercentage Float       @default(0)
+  isCombo              Boolean     @default(false)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  orderItems           OrderItem[]
+  comboItems           ComboItem[] @relation("ComboToItems")
+  usedInCombos         ComboItem[] @relation("ProductToCombos")
+}
+
+model ComboItem {
+  id        String  @id @default(cuid())
+  comboId   String
+  combo     Product @relation("ComboToItems", fields: [comboId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation("ProductToCombos", fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int     @default(1)
 }
 
 model Order {

@@ -22,33 +22,48 @@ export const COMMANDS = {
     }
 };
 
-export async function printReceipt(ip: string, port: number, data: Buffer | string): Promise<void> {
-    return new Promise((resolve, reject) => {
-        const client = new net.Socket();
+export async function printReceipt(ip: string, port: number, data: Buffer | string, retries: number = 3): Promise<void> {
+    let lastError: any;
 
-        const timeout = setTimeout(() => {
-            client.destroy();
-            reject(new Error('Connection timed out'));
-        }, 5000);
-
-        client.connect(port, ip, () => {
-            clearTimeout(timeout);
-            client.write(data, (err) => {
-                if (err) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            await new Promise<void>((resolve, reject) => {
+                const client = new net.Socket();
+                const timeout = setTimeout(() => {
                     client.destroy();
-                    reject(err);
-                } else {
-                    client.end(); // Close connection after writing
-                    resolve();
-                }
-            });
-        });
+                    reject(new Error('Connection timed out'));
+                }, 10000); // Increased to 10s
 
-        client.on('error', (err) => {
-            clearTimeout(timeout);
-            reject(err);
-        });
-    });
+                client.connect(port, ip, () => {
+                    clearTimeout(timeout);
+                    client.write(data, (err) => {
+                        if (err) {
+                            client.destroy();
+                            reject(err);
+                        } else {
+                            client.end();
+                            resolve();
+                        }
+                    });
+                });
+
+                client.on('error', (err) => {
+                    clearTimeout(timeout);
+                    reject(err);
+                });
+            });
+            console.log(`Successfully printed to ${ip} on attempt ${i + 1}`);
+            return; // Success!
+        } catch (error) {
+            lastError = error;
+            console.warn(`Print attempt ${i + 1} failed for ${ip}:`, error instanceof Error ? error.message : error);
+            if (i < retries - 1) {
+                await new Promise(r => setTimeout(r, 1500)); // Wait 1.5s before retry
+            }
+        }
+    }
+
+    throw lastError || new Error(`Failed to print to ${ip} after ${retries} attempts`);
 }
 
 export function buildReceiptData(order: any, cashierName: string, paymentDetails?: { tendered: number, change: number, operationCode?: string }, waiterName?: string): string {

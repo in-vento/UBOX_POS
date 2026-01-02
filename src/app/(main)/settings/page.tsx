@@ -16,9 +16,22 @@ import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/page-header";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Printer, Plus, Trash2, CheckCircle2, XCircle, Monitor } from "lucide-react";
+import { Loader2, Printer, Plus, Trash2, CheckCircle2, XCircle, Monitor, Copy, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+
+declare global {
+  interface Window {
+    electron?: {
+      getHWID: () => Promise<string>;
+      startTunnel: (port: number) => Promise<{ url?: string; error?: string }>;
+      stopTunnel: () => Promise<{ success: boolean; message?: string }>;
+      on: (channel: string, func: (...args: any[]) => void) => void;
+      send: (channel: string, data: any) => void;
+      removeAllListeners: (channel: string) => void;
+    };
+  }
+}
 
 interface PrinterData {
   id: string;
@@ -50,7 +63,9 @@ export default function SettingsPage() {
     popupDuration: 3000,
     soundEnabled: true,
     localAccessOnly: false,
-    showDashboard: true
+    showDashboard: true,
+    publicAccessEnabled: false,
+    publicUrl: null as string | null
   });
 
   useEffect(() => {
@@ -89,6 +104,60 @@ export default function SettingsPage() {
       toast({ title: "Error", description: "No se pudo guardar la configuración.", variant: "destructive" });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePublicAccessToggle = async (enabled: boolean) => {
+    if (enabled) {
+      // Start tunnel
+      if (window.electron?.startTunnel) {
+        setIsSaving(true);
+        try {
+          const result = await window.electron.startTunnel(9009);
+          if (result.url) {
+            const newConfig = {
+              ...monitorConfig,
+              publicAccessEnabled: true,
+              publicUrl: result.url
+            };
+            setMonitorConfig(newConfig);
+            // Save to DB
+            await fetch('/api/monitor/config', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(newConfig)
+            });
+            toast({ title: "Link Público Activado", description: `El link es: ${result.url}` });
+          } else {
+            toast({ title: "Error", description: result.error || "No se pudo activar el link público.", variant: "destructive" });
+          }
+        } catch (error) {
+          console.error("Error starting tunnel:", error);
+          toast({ title: "Error", description: "Error al iniciar el túnel.", variant: "destructive" });
+        } finally {
+          setIsSaving(false);
+        }
+      } else {
+        toast({ title: "No disponible", description: "Esta función solo está disponible en la aplicación de escritorio.", variant: "destructive" });
+      }
+    } else {
+      // Stop tunnel
+      if (window.electron?.stopTunnel) {
+        await window.electron.stopTunnel();
+        const newConfig = {
+          ...monitorConfig,
+          publicAccessEnabled: false,
+          publicUrl: null
+        };
+        setMonitorConfig(newConfig);
+        // Save to DB
+        await fetch('/api/monitor/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newConfig)
+        });
+        toast({ title: "Link Público Desactivado", description: "El acceso remoto ha sido cerrado." });
+      }
     }
   };
 
@@ -317,6 +386,118 @@ export default function SettingsPage() {
                       onCheckedChange={(checked) => setMonitorConfig(prev => ({ ...prev, localAccessOnly: !!checked }))}
                     />
                   </div>
+
+                  <div className="flex items-center justify-between space-x-2 p-4 border rounded-lg bg-blue-50/30 border-blue-100">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="m-public">Acceso Público (Beta)</Label>
+                      <p className="text-xs text-muted-foreground">Genera un link para entrar desde cualquier lugar sin configurar el router.</p>
+                    </div>
+                    <Checkbox
+                      id="m-public"
+                      checked={monitorConfig.publicAccessEnabled}
+                      onCheckedChange={(checked) => handlePublicAccessToggle(!!checked)}
+                      disabled={isSaving}
+                    />
+                  </div>
+
+                  {monitorConfig.publicAccessEnabled && monitorConfig.publicUrl && (
+                    <div className="md:col-span-2 lg:col-span-3 p-4 border rounded-lg bg-green-50/30 border-green-100 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <Label className="text-sm font-medium text-green-800">Link Público Activo</Label>
+                          <p className="text-xs text-green-600 font-mono break-all">
+                            {monitorConfig.publicUrl}/monitor
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2 border-green-200 hover:bg-green-100"
+                          onClick={() => {
+                            const url = `${monitorConfig.publicUrl}/monitor`;
+                            navigator.clipboard.writeText(url);
+                            toast({ title: "Copiado", description: "Link público copiado al portapapeles." });
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copiar
+                        </Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground italic">
+                        Nota: Este link es temporal y cambiará si desactivas y vuelves a activar la opción.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="md:col-span-2 lg:col-span-3 p-4 border rounded-lg bg-muted/30">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <Label className="text-base">Link de Acceso para Monitores</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Comparte este link con los usuarios con rol Monitor para que puedan acceder desde cualquier dispositivo.
+                        </p>
+                      </div>
+                      <div className="flex gap-2 w-full md:w-auto">
+                        <Button
+                          variant="outline"
+                          className="flex-1 md:flex-none gap-2"
+                          onClick={async () => {
+                            const url = `${window.location.origin}/monitor`;
+
+                            const copyToClipboard = async (text: string) => {
+                              // Try modern API first
+                              if (navigator.clipboard && window.isSecureContext) {
+                                await navigator.clipboard.writeText(text);
+                                return true;
+                              }
+
+                              // Fallback for non-secure origins (HTTP)
+                              try {
+                                const textArea = document.createElement("textarea");
+                                textArea.value = text;
+                                textArea.style.position = "fixed";
+                                textArea.style.left = "-999999px";
+                                textArea.style.top = "-999999px";
+                                document.body.appendChild(textArea);
+                                textArea.focus();
+                                textArea.select();
+                                const successful = document.execCommand('copy');
+                                document.body.removeChild(textArea);
+                                return successful;
+                              } catch (err) {
+                                return false;
+                              }
+                            };
+
+                            const success = await copyToClipboard(url);
+                            if (success) {
+                              toast({
+                                title: "Link Copiado",
+                                description: `El link (${url}) ha sido copiado al portapapeles.`,
+                              });
+                            } else {
+                              toast({
+                                title: "Copiado Manual",
+                                description: `No se pudo copiar automáticamente. Por favor, copia este link: ${url}`,
+                                variant: "default",
+                              });
+                            }
+                          }}
+                        >
+                          <Copy className="h-4 w-4" />
+                          Copiar Link
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          className="flex-1 md:flex-none gap-2"
+                          onClick={() => window.open('/monitor', '_blank')}
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Abrir Monitor
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
               <CardFooter className="border-t pt-6">
@@ -445,7 +626,7 @@ export default function SettingsPage() {
             </Card>
           </div>
         )}
-      </div>
+      </div >
     </>
   );
 }

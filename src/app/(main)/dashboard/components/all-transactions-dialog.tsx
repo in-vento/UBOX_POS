@@ -114,7 +114,8 @@ export default function AllTransactionsDialog({
                 quantity: item.quantity,
                 price: item.price,
                 category: item.product?.category,
-                isCommissionable: item.product?.isCommissionable
+                isCommissionable: item.product?.isCommissionable,
+                commissionPercentage: item.product?.commissionPercentage
               }))
             }));
             setAllOrders(transformedOrders);
@@ -275,19 +276,24 @@ export default function AllTransactionsDialog({
   const handlePrintAuditTicket = async () => {
     if (!detailedOrder) return;
 
-    const commissionableTotal = (detailedOrder.products || []).reduce((sum, p) => {
-      return sum + (p.isCommissionable ? (p.price * p.quantity) : 0);
+    // Calculate total commission for the order using product-level percentages or fallback
+    const totalOrderCommission = (detailedOrder.products || []).reduce((sum, p) => {
+      if (p.isCommissionable) {
+        const productPercentage = p.commissionPercentage || 0;
+        // For audit ticket, we'll use the product percentage if > 0, 
+        // otherwise fallback to the first masajista's commission or 32%
+        const masajistaDefaultPercentage = masajistasForDetailedOrder.length > 0
+          ? (masajistasForDetailedOrder[0].commission || 32)
+          : 32;
+
+        const effectivePercentage = productPercentage > 0 ? productPercentage : masajistaDefaultPercentage;
+        return sum + (p.price * (effectivePercentage / 100) * p.quantity);
+      }
+      return sum;
     }, 0);
 
-    // Use the first masseuse's commission rate or default to 32%
-    const commissionRate = masajistasForDetailedOrder.length > 0
-      ? (masajistasForDetailedOrder[0].commission || 32)
-      : 32;
-
-    const totalCommissionPool = commissionableTotal * (commissionRate / 100);
-
     const commissionPerMasseuse = masajistasForDetailedOrder.length > 0
-      ? totalCommissionPool / masajistasForDetailedOrder.length
+      ? totalOrderCommission / masajistasForDetailedOrder.length
       : 0;
 
     const payload = {

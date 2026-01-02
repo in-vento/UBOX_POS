@@ -38,6 +38,7 @@ import { useToast } from '@/hooks/use-toast';
 import EndOfShiftReportDialog from './components/end-of-shift-report-dialog';
 import AddStockDialog from './components/add-stock-dialog';
 import ReceiveShiftDialog from './components/receive-shift-dialog';
+import AdjustStockDialog from './components/adjust-stock-dialog';
 
 type Beverage = Omit<Product, 'quantity'> & {
   stock: number;
@@ -47,6 +48,7 @@ type Beverage = Omit<Product, 'quantity'> & {
 export default function BarPage() {
   const searchParams = useSearchParams();
   const role = searchParams.get('role');
+  const userId = searchParams.get('id');
   const isAdminOrBoss = role === 'admin' || role === 'boss';
 
   const [inventory, setInventory] = useState<Beverage[]>([]);
@@ -60,6 +62,8 @@ export default function BarPage() {
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false);
   const [isAddStockDialogOpen, setIsAddStockDialogOpen] = useState(false);
   const [isReceiveShiftDialogOpen, setIsReceiveShiftDialogOpen] = useState(false);
+  const [isAdjustStockDialogOpen, setIsAdjustStockDialogOpen] = useState(false);
+  const [selectedProductToAdjust, setSelectedProductToAdjust] = useState<Beverage | null>(null);
   const [reportedInventory, setReportedInventory] = useState<Beverage[]>([]);
   const { toast } = useToast();
 
@@ -101,7 +105,7 @@ export default function BarPage() {
   const fetchData = useCallback(async () => {
     try {
       const [productsRes, usersRes] = await Promise.all([
-        fetch('/api/products?category=Bebida'),
+        fetch('/api/products'),
         fetch('/api/users?status=Active'), // Fetch all active users to filter client-side
         checkShiftStatus() // Check shift status from logs
       ]);
@@ -243,7 +247,47 @@ export default function BarPage() {
     }
   };
 
-  const displayInventory = useMemo(() => inventory || [], [inventory]);
+  const handleAdjustStock = async (productId: string, newStock: number) => {
+    try {
+      const product = inventory.find(p => p.id === productId);
+      const oldStock = product?.stock || 0;
+
+      await fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stock: newStock }),
+      });
+
+      // Create log entry
+      await fetch('/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'STOCK_ADJUST',
+          details: `Ajuste manual de stock para ${product?.name}: ${oldStock} -> ${newStock}`,
+          userId: userId
+        }),
+      });
+
+      toast({
+        title: 'Stock Ajustado',
+        description: `El stock ha sido ajustado manualmente a ${newStock}.`,
+      });
+      fetchData();
+    } catch (error) {
+      console.error('Error adjusting stock:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo ajustar el stock del producto.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const displayInventory = useMemo(() =>
+    (inventory || []).filter(p => !p.isCombo && (p.category === 'Bebida' || p.category === 'Otro' || p.category === 'Comida')),
+    [inventory]
+  );
 
   return (
     <>
@@ -353,9 +397,14 @@ export default function BarPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                Ajustar Stock
-                              </DropdownMenuItem>
+                              {isAdminOrBoss && (
+                                <DropdownMenuItem onClick={() => {
+                                  setSelectedProductToAdjust(item);
+                                  setIsAdjustStockDialogOpen(true);
+                                }}>
+                                  Ajustar Stock
+                                </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem>
                                 Ver Historial
                               </DropdownMenuItem>
@@ -388,6 +437,12 @@ export default function BarPage() {
         onOpenChange={setIsReceiveShiftDialogOpen}
         reportedInventory={reportedInventory}
         onConfirm={handleConfirmReceiveShift}
+      />
+      <AdjustStockDialog
+        isOpen={isAdjustStockDialogOpen}
+        onOpenChange={setIsAdjustStockDialogOpen}
+        product={selectedProductToAdjust}
+        onConfirm={handleAdjustStock}
       />
     </>
   );

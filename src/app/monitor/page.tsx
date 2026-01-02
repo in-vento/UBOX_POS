@@ -116,20 +116,24 @@ export default function MonitorPage() {
         e.preventDefault();
         setIsLoading(true);
         try {
-            const res = await fetch('/api/users');
-            const users = await res.json();
-            const user = users.find((u: any) => u.email === email && u.password === password && u.role === 'Monitor');
+            const res = await fetch('/api/monitor/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
 
-            if (user) {
-                if (user.status !== 'Active') {
-                    toast({ title: 'Error', description: 'Usuario inactivo.', variant: 'destructive' });
-                } else {
-                    setIsLoggedIn(true);
-                    setMonitorUser(user);
-                    fetchWaiters();
-                }
+            if (res.ok) {
+                const user = await res.json();
+                setIsLoggedIn(true);
+                setMonitorUser(user);
+                fetchWaiters();
             } else {
-                toast({ title: 'Error', description: 'Credenciales incorrectas.', variant: 'destructive' });
+                const error = await res.json();
+                toast({
+                    title: 'Error',
+                    description: error.error || 'Credenciales incorrectas.',
+                    variant: 'destructive'
+                });
             }
         } catch (error) {
             toast({ title: 'Error', description: 'Error al iniciar sesión.', variant: 'destructive' });

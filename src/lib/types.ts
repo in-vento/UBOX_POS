@@ -32,6 +32,17 @@ export type Product = {
   price: number;
   category?: ProductCategory;
   isCommissionable?: boolean;
+  commissionPercentage?: number;
+  isCombo?: boolean;
+  comboItems?: ComboItemComponent[];
+};
+
+export type ComboItemComponent = {
+  id: string;
+  comboId: string;
+  productId: string;
+  product?: Product;
+  quantity: number;
 };
 
 export type Payment = {

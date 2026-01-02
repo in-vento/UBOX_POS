@@ -87,19 +87,23 @@ export default function EndOfDayReportDialog({
         if (shiftStartTime && new Date(order.updatedAt) <= shiftStartTime) return;
 
         if (order.masajistaIds?.includes(masajista.id) && order.status === 'Completed') {
-          // Calculate commissionable amount based on products
-          const commissionableAmount = (order.products || []).reduce((sum, product) => {
+          const masajistaDefaultPercentage = (masajista.commission || 0) / 100;
+
+          // Calculate commission for this masajista
+          const orderCommission = (order.products || []).reduce((sum, product) => {
             if (product.isCommissionable) {
-              return sum + (product.price * (product.quantity || 1));
+              const productPercentage = product.commissionPercentage || 0;
+              const effectivePercentage = productPercentage > 0 ? (productPercentage / 100) : masajistaDefaultPercentage;
+              return sum + (product.price * effectivePercentage * (product.quantity || 1));
             }
             return sum;
           }, 0);
 
           // Divide by number of masajistas assigned to the order
-          salesByMasajista += commissionableAmount / (order.masajistaIds.length);
+          salesByMasajista += orderCommission / (order.masajistaIds.length);
         }
       });
-      const commissionAmount = salesByMasajista * ((masajista.commission || 0) / 100);
+      const commissionAmount = salesByMasajista;
       if (commissionAmount > 0) {
         masajistaCommissions.push({ name: masajista.name, commission: commissionAmount });
       }

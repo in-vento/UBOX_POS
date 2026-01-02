@@ -9,8 +9,8 @@ export async function POST(req: NextRequest) {
         const { order, cashierName, paymentDetails, waiterName, type, reportData } = body;
         let { printerIp } = body;
 
-        // If printerIp is not provided, try to find it in the database based on the type/area
-        if (!printerIp) {
+        // If printerIp is not provided or empty, try to find it in the database based on the type/area
+        if (!printerIp || printerIp.trim() === '') {
             let area = 'Caja'; // Default
             if (type === 'bar-ticket' || type === 'shift-report') {
                 area = 'Barra';
@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
                 area = 'Cocina';
             }
 
+            console.log(`No printer IP provided for ${type}. Searching for printer assigned to area: ${area}`);
             const printers = await prisma.printer.findMany();
             const assignedPrinter = printers.find((p: any) => {
                 try {
@@ -30,12 +31,15 @@ export async function POST(req: NextRequest) {
 
             if (assignedPrinter) {
                 printerIp = assignedPrinter.ip;
-                console.log(`Using assigned printer for ${area}: ${printerIp}`);
+                console.log(`Found assigned printer for ${area}: ${printerIp} (${assignedPrinter.name})`);
+            } else {
+                console.warn(`No printer found in database for area: ${area}`);
             }
         }
 
-        if (!printerIp) {
-            return NextResponse.json({ error: 'No se encontró una impresora configurada para esta área.' }, { status: 400 });
+        if (!printerIp || printerIp.trim() === '') {
+            console.error('Print failed: No printer IP available after database lookup.');
+            return NextResponse.json({ error: 'No se encontró una impresora configurada para esta área. Por favor, verifique la configuración.' }, { status: 400 });
         }
 
         if (!order && !reportData && type !== 'test' && type !== 'commission-ticket') {

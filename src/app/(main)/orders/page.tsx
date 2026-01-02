@@ -95,6 +95,9 @@ export default function ProductsPage() {
   const [selectedProduct, setSelectedProduct] =
     useState<CatalogProduct | null>(null);
   const [isNewProductCommissionable, setIsNewProductCommissionable] = useState(false);
+  const [newProductCommissionPercentage, setNewProductCommissionPercentage] = useState('0');
+  const [isNewProductCombo, setIsNewProductCombo] = useState(false);
+  const [newProductComboItems, setNewProductComboItems] = useState<{ productId: string; quantity: number }[]>([]);
   const { toast } = useToast();
 
   const handleAddProduct = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -110,10 +113,21 @@ export default function ProductsPage() {
         const res = await fetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, price, category, isCommissionable }),
+          body: JSON.stringify({
+            name,
+            price,
+            category,
+            isCommissionable,
+            commissionPercentage: isCommissionable ? newProductCommissionPercentage : 0,
+            isCombo: isNewProductCombo,
+            comboItems: isNewProductCombo ? newProductComboItems : []
+          }),
         });
 
-        if (!res.ok) throw new Error('Failed to create product');
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.details || errorData.error || 'Failed to create product');
+        }
 
         toast({
           title: 'Producto Añadido',
@@ -148,7 +162,15 @@ export default function ProductsPage() {
         const res = await fetch(`/api/products/${selectedProduct.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, price, category, isCommissionable }),
+          body: JSON.stringify({
+            name,
+            price,
+            category,
+            isCommissionable,
+            commissionPercentage: isCommissionable ? selectedProduct.commissionPercentage : 0,
+            isCombo: selectedProduct.isCombo,
+            comboItems: selectedProduct.isCombo ? selectedProduct.comboItems : []
+          }),
         });
 
         if (!res.ok) throw new Error('Failed to update product');
@@ -252,6 +274,7 @@ export default function ProductsPage() {
                   <TableHead className="hidden md:table-cell">
                     Categoría
                   </TableHead>
+                  <TableHead className="text-center">Comisión</TableHead>
                   <TableHead className="text-right">Precio</TableHead>
                   {isAdminOrBoss && (
                     <TableHead>
@@ -263,9 +286,19 @@ export default function ProductsPage() {
               <TableBody>
                 {products?.map((product) => (
                   <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell className="font-medium">
+                      {product.name}
+                      {product.isCombo && (
+                        <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                          Combo
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="hidden md:table-cell text-muted-foreground">
                       {product.category || 'Sin categoría'}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {product.isCommissionable ? `${product.commissionPercentage || 0}%` : '-'}
                     </TableCell>
                     <TableCell className="text-right">
                       S/{' '}
@@ -365,6 +398,85 @@ export default function ProductsPage() {
                 <input type="hidden" name="isCommissionable" value={isNewProductCommissionable ? 'on' : ''} />
                 <Label htmlFor="product-commission">Aplica Comisión Masajista</Label>
               </div>
+              {isNewProductCommissionable && (
+                <div className="grid gap-2 pl-6">
+                  <Label htmlFor="product-commission-percentage">Porcentaje de Comisión (%)</Label>
+                  <Input
+                    id="product-commission-percentage"
+                    type="number"
+                    step="0.1"
+                    value={newProductCommissionPercentage}
+                    onChange={(e) => setNewProductCommissionPercentage(e.target.value)}
+                    placeholder="Ej: 10"
+                  />
+                </div>
+              )}
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="product-is-combo"
+                  checked={isNewProductCombo}
+                  onCheckedChange={(checked) => setIsNewProductCombo(checked === true)}
+                />
+                <Label htmlFor="product-is-combo">Es un Combo</Label>
+              </div>
+              {isNewProductCombo && (
+                <div className="grid gap-4 pl-6 border-l-2 border-primary/20 ml-2">
+                  <Label>Componentes del Combo</Label>
+                  <div className="space-y-2">
+                    {newProductComboItems.map((item, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Select
+                          value={item.productId}
+                          onValueChange={(val) => {
+                            const updated = [...newProductComboItems];
+                            updated[index].productId = val;
+                            setNewProductComboItems(updated);
+                          }}
+                        >
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Seleccionar producto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.filter(p => !p.isCombo).map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="number"
+                          className="w-20"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const updated = [...newProductComboItems];
+                            updated[index].quantity = parseInt(e.target.value) || 1;
+                            setNewProductComboItems(updated);
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setNewProductComboItems(newProductComboItems.filter((_, i) => i !== index));
+                          }}
+                        >
+                          <PlusCircle className="h-4 w-4 rotate-45 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => setNewProductComboItems([...newProductComboItems, { productId: '', quantity: 1 }])}
+                    >
+                      <PlusCircle className="h-3.5 w-3.5 mr-2" />
+                      Añadir Componente
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button
@@ -445,6 +557,113 @@ export default function ProductsPage() {
                 <input type="hidden" name="isCommissionable" value={selectedProduct?.isCommissionable ? 'on' : ''} />
                 <Label htmlFor="edit-product-commission">Aplica Comisión Masajista</Label>
               </div>
+              {selectedProduct?.isCommissionable && (
+                <div className="grid gap-2 pl-6">
+                  <Label htmlFor="edit-product-commission-percentage">Porcentaje de Comisión (%)</Label>
+                  <Input
+                    id="edit-product-commission-percentage"
+                    type="number"
+                    step="0.1"
+                    value={selectedProduct.commissionPercentage || 0}
+                    onChange={(e) => {
+                      if (selectedProduct) {
+                        setSelectedProduct({ ...selectedProduct, commissionPercentage: parseFloat(e.target.value) || 0 });
+                      }
+                    }}
+                    placeholder="Ej: 10"
+                  />
+                </div>
+              )}
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="edit-product-is-combo"
+                  checked={selectedProduct?.isCombo || false}
+                  onCheckedChange={(checked) => {
+                    if (selectedProduct) {
+                      setSelectedProduct({
+                        ...selectedProduct,
+                        isCombo: checked === true,
+                        comboItems: checked === true ? (selectedProduct.comboItems || []) : []
+                      });
+                    }
+                  }}
+                />
+                <Label htmlFor="edit-product-is-combo">Es un Combo</Label>
+              </div>
+              {selectedProduct?.isCombo && (
+                <div className="grid gap-4 pl-6 border-l-2 border-primary/20 ml-2">
+                  <Label>Componentes del Combo</Label>
+                  <div className="space-y-2">
+                    {(selectedProduct.comboItems || []).map((item, index) => (
+                      <div key={index} className="flex items-center gap-2">
+                        <Select
+                          value={item.productId}
+                          onValueChange={(val) => {
+                            if (selectedProduct) {
+                              const updated = [...(selectedProduct.comboItems || [])];
+                              updated[index].productId = val;
+                              setSelectedProduct({ ...selectedProduct, comboItems: updated });
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Seleccionar producto" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.filter(p => !p.isCombo && p.id !== selectedProduct.id).map(p => (
+                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          type="number"
+                          className="w-20"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            if (selectedProduct) {
+                              const updated = [...(selectedProduct.comboItems || [])];
+                              updated[index].quantity = parseInt(e.target.value) || 1;
+                              setSelectedProduct({ ...selectedProduct, comboItems: updated });
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            if (selectedProduct) {
+                              setSelectedProduct({
+                                ...selectedProduct,
+                                comboItems: (selectedProduct.comboItems || []).filter((_, i) => i !== index)
+                              });
+                            }
+                          }}
+                        >
+                          <PlusCircle className="h-4 w-4 rotate-45 text-destructive" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => {
+                        if (selectedProduct) {
+                          setSelectedProduct({
+                            ...selectedProduct,
+                            comboItems: [...(selectedProduct.comboItems || []), { id: '', comboId: selectedProduct.id, productId: '', quantity: 1 }]
+                          });
+                        }
+                      }}
+                    >
+                      <PlusCircle className="h-3.5 w-3.5 mr-2" />
+                      Añadir Componente
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button

@@ -3,12 +3,12 @@ import { prisma } from '@/lib/prisma';
 
 export async function PUT(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = params.id;
+        const { id } = await params;
         const body = await request.json();
-        const { name, price, category, stock } = body;
+        const { name, price, category, stock, commissionPercentage, isCombo, comboItems } = body;
 
         const dataToUpdate: any = {};
         if (name) dataToUpdate.name = name;
@@ -16,12 +16,32 @@ export async function PUT(
         if (category) dataToUpdate.category = category;
         if (stock !== undefined) dataToUpdate.stock = parseInt(stock);
         if (body.isCommissionable !== undefined) dataToUpdate.isCommissionable = body.isCommissionable;
+        if (commissionPercentage !== undefined) dataToUpdate.commissionPercentage = parseFloat(commissionPercentage);
+        if (isCombo !== undefined) dataToUpdate.isCombo = isCombo;
+
+        // Handle combo items update
+        if (isCombo && comboItems) {
+            dataToUpdate.comboItems = {
+                deleteMany: {},
+                create: comboItems.map((item: any) => ({
+                    productId: item.productId,
+                    quantity: parseInt(item.quantity)
+                }))
+            };
+        } else if (isCombo === false) {
+            dataToUpdate.comboItems = {
+                deleteMany: {}
+            };
+        }
 
         console.log('Updating product:', id, dataToUpdate);
 
         const product = await prisma.product.update({
             where: { id },
             data: dataToUpdate,
+            include: {
+                comboItems: true
+            }
         });
 
         return NextResponse.json(product);
@@ -33,10 +53,10 @@ export async function PUT(
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = params.id;
+        const { id } = await params;
 
         // Check if product is used in any orders
         const orderItems = await prisma.orderItem.findFirst({

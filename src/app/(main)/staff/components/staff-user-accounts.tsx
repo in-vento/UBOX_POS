@@ -70,6 +70,7 @@ const roleVariant: Record<
   Cajero: 'secondary',
   Masajista: 'outline',
   'Personal de soporte': 'outline',
+  Monitor: 'secondary',
 };
 
 const userRoles: UserRole[] = [
@@ -143,6 +144,8 @@ export default function StaffUserAccounts({
         formData.phone !== selectedUser.phone ||
         formData.role !== selectedUser.role ||
         formData.pin !== selectedUser.pin ||
+        formData.email !== selectedUser.email ||
+        formData.password !== selectedUser.password ||
         formData.fingerprintEnabled !== selectedUser.fingerprintEnabled;
       setIsDirty(hasChanged);
     } else {
@@ -157,6 +160,7 @@ export default function StaffUserAccounts({
       phone: user.phone,
       role: user.role,
       pin: user.pin,
+      email: user.email,
       password: user.password,
       fingerprintEnabled: user.fingerprintEnabled,
     });

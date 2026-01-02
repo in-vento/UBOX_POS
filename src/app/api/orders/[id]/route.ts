@@ -3,10 +3,10 @@ import { prisma } from '@/lib/prisma';
 
 export async function PUT(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = params.id;
+        const { id } = await params;
         const body = await request.json();
         const { status, payment, items, userId, editedBy } = body;
 
@@ -82,6 +82,53 @@ export async function PUT(
             }
         }
 
+        // Determine if stock should be deducted (only if status is changing to Completed)
+        const targetTotal = updateData.totalAmount !== undefined ? updateData.totalAmount : currentOrder.totalAmount;
+        const isBecomingCompleted = (status === 'Completed' || (payment && (currentOrder.paidAmount + payment.amount) >= targetTotal)) && currentOrder.status !== 'Completed';
+
+        if (isBecomingCompleted) {
+            console.log(`Order ${id} is becoming Completed. Deducting stock...`);
+            const orderWithItems = await prisma.order.findUnique({
+                where: { id },
+                include: { items: true }
+            });
+
+            if (orderWithItems) {
+                const visitedIds = new Set<string>();
+                // Recursive function to deduct stock
+                const deductStockRecursive = async (productId: string, quantity: number, depth: number = 0) => {
+                    if (depth > 10 || visitedIds.has(productId)) {
+                        console.warn(`Circular dependency or too deep recursion detected for product ${productId}`);
+                        return;
+                    }
+                    visitedIds.add(productId);
+
+                    const product = await prisma.product.findUnique({
+                        where: { id: productId },
+                        include: { comboItems: true }
+                    });
+
+                    if (product?.isCombo && product.comboItems.length > 0) {
+                        console.log(`Deducting combo ${product.name} (x${quantity}) -> components: ${product.comboItems.length}`);
+                        for (const comboItem of product.comboItems) {
+                            await deductStockRecursive(comboItem.productId, comboItem.quantity * quantity, depth + 1);
+                        }
+                    } else if (product) {
+                        console.log(`Deducting regular product ${product.name} (x${quantity}). Current stock: ${product.stock}`);
+                        await prisma.product.update({
+                            where: { id: productId },
+                            data: { stock: { decrement: quantity } }
+                        });
+                    }
+                    visitedIds.delete(productId);
+                };
+
+                for (const item of orderWithItems.items) {
+                    await deductStockRecursive(item.productId, item.quantity);
+                }
+            }
+        }
+
         // If payment is provided, add it and update paidAmount
         if (payment) {
             updateData.paidAmount = { increment: payment.amount };
@@ -93,25 +140,9 @@ export async function PUT(
                 }
             };
 
-            // Auto-complete if fully paid (use current total or recalculated one)
-            const targetTotal = updateData.totalAmount !== undefined ? updateData.totalAmount : currentOrder.totalAmount;
+            // Auto-complete if fully paid
             if ((currentOrder.paidAmount + payment.amount) >= targetTotal) {
                 updateData.status = 'Completed';
-
-                // Deduct stock when order is completed
-                const orderWithItems = await prisma.order.findUnique({
-                    where: { id },
-                    include: { items: true }
-                });
-
-                if (orderWithItems) {
-                    for (const item of orderWithItems.items) {
-                        await prisma.product.update({
-                            where: { id: item.productId },
-                            data: { stock: { decrement: item.quantity } }
-                        });
-                    }
-                }
             }
         }
 
@@ -133,10 +164,10 @@ export async function PUT(
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = params.id;
+        const { id } = await params;
         const body = await request.json().catch(() => ({}));
         const { reason, userId } = body;
 

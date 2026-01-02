@@ -109,10 +109,21 @@ export default function CashierDashboard({ currentOrders = [], allUsers = [], ca
     const ordersWithMasajistas = (currentOrders || []).filter(o => o.status === 'Completed' && o.masajistaIds && o.masajistaIds.length > 0);
 
     ordersWithMasajistas.forEach(order => {
-      // Calculate commissionable amount based on products
-      const commissionableAmount = (order.products || []).reduce((sum, product) => {
+      // Calculate total commission for the order
+      const totalOrderCommission = (order.products || []).reduce((sum, product) => {
         if (product.isCommissionable) {
-          return sum + (product.price * (product.quantity || 1));
+          // Use product-level commission percentage if > 0, otherwise fallback to masajista's default
+          // We'll calculate the base commissionable amount here and apply the masajista's % later if needed,
+          // OR calculate the actual commission here if the product has a specific % set.
+          // Let's calculate the actual commission here.
+          const productPercentage = product.commissionPercentage || 0;
+          if (productPercentage > 0) {
+            return sum + (product.price * (productPercentage / 100) * (product.quantity || 1));
+          } else {
+            // Fallback to masajista's default commission (applied later to the price)
+            // For now, we'll just return the price and handle the fallback in the masajista loop
+            return sum + (product.price * (product.quantity || 1));
+          }
         }
         return sum;
       }, 0);
@@ -124,8 +135,21 @@ export default function CashierDashboard({ currentOrders = [], allUsers = [], ca
 
       order.masajistaIds?.forEach(masajistaId => {
         if (sales[masajistaId] !== undefined) {
+          const masajista = masajistas.find(m => m.id === masajistaId);
+          const masajistaDefaultPercentage = (masajista?.commission || 0) / 100;
+
+          // Recalculate commission for this masajista specifically to handle fallbacks
+          const masajistaCommission = (order.products || []).reduce((sum, product) => {
+            if (product.isCommissionable) {
+              const productPercentage = product.commissionPercentage || 0;
+              const effectivePercentage = productPercentage > 0 ? (productPercentage / 100) : masajistaDefaultPercentage;
+              return sum + (product.price * effectivePercentage * (product.quantity || 1));
+            }
+            return sum;
+          }, 0);
+
           // Divide by number of masajistas assigned to the order
-          sales[masajistaId] += commissionableAmount / order.masajistaIds!.length;
+          sales[masajistaId] += masajistaCommission / order.masajistaIds!.length;
         }
       });
     });
@@ -351,8 +375,7 @@ export default function CashierDashboard({ currentOrders = [], allUsers = [], ca
             <ScrollArea className="h-full">
               <div className="space-y-4 text-sm">
                 {filteredMasajistas.map((staff) => {
-                  const totalSales = masajistaSales[staff.id] || 0;
-                  const commissionAmount = totalSales * ((staff.commission || 0) / 100);
+                  const commissionAmount = masajistaSales[staff.id] || 0;
 
                   return (
                     <div

@@ -3,9 +3,11 @@ const path = require('path');
 const { exec, spawn } = require('child_process');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
+const localtunnel = require('localtunnel');
 
 let mainWindow;
 let serverProcess;
+let tunnel;
 const isDev = !app.isPackaged;
 
 const userDataPath = app.getPath('userData');
@@ -193,7 +195,8 @@ ipcMain.on('quit-and-install', () => {
 
 app.on('ready', createWindow);
 
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
+    if (tunnel) await tunnel.close();
     if (serverProcess) serverProcess.kill();
     if (process.platform !== 'darwin') {
         app.quit();
@@ -216,4 +219,38 @@ ipcMain.handle('get-hwid', async () => {
             resolve('NON-WINDOWS-HWID');
         }
     });
+});
+
+ipcMain.handle('start-tunnel', async (event, port) => {
+    try {
+        if (tunnel) {
+            await tunnel.close();
+        }
+
+        tunnel = await localtunnel({
+            port: port || 9009,
+            subdomain: `ubox-pos-${Math.random().toString(36).substring(2, 8)}`
+        });
+
+        console.log(`Tunnel started at: ${tunnel.url}`);
+
+        tunnel.on('close', () => {
+            console.log('Tunnel closed');
+            tunnel = null;
+        });
+
+        return { url: tunnel.url };
+    } catch (err) {
+        console.error('Failed to start tunnel:', err);
+        return { error: err.message };
+    }
+});
+
+ipcMain.handle('stop-tunnel', async () => {
+    if (tunnel) {
+        await tunnel.close();
+        tunnel = null;
+        return { success: true };
+    }
+    return { success: false, message: 'No active tunnel' };
 });
