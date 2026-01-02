@@ -4,6 +4,12 @@ const { exec, spawn } = require('child_process');
 const { autoUpdater } = require('electron-updater');
 const fs = require('fs');
 const localtunnel = require('localtunnel');
+const log = require('electron-log');
+
+// Configure logging
+log.transports.file.level = 'info';
+autoUpdater.logger = log;
+log.info('App starting...');
 
 let mainWindow;
 let serverProcess;
@@ -137,20 +143,41 @@ async function createWindow() {
         autoUpdater.autoDownload = true;
         autoUpdater.autoInstallOnAppQuit = false;
 
-        autoUpdater.on('update-available', () => {
+        autoUpdater.on('checking-for-update', () => {
+            log.info('Checking for update...');
+        });
+
+        autoUpdater.on('update-available', (info) => {
+            log.info('Update available:', info.version);
             mainWindow.webContents.send('update-available');
         });
 
-        autoUpdater.on('update-downloaded', () => {
+        autoUpdater.on('update-not-available', (info) => {
+            log.info('Update not available.');
+        });
+
+        autoUpdater.on('update-downloaded', (info) => {
+            log.info('Update downloaded:', info.version);
             mainWindow.webContents.send('update-downloaded');
         });
 
         autoUpdater.on('error', (err) => {
-            console.error('AutoUpdater error:', err);
+            log.error('AutoUpdater error:', err);
         });
 
-        // Check for updates
-        autoUpdater.checkForUpdates();
+        // Check for updates with a delay to ensure renderer is ready
+        setTimeout(() => {
+            autoUpdater.checkForUpdates().catch(err => {
+                log.error('Initial update check failed:', err);
+            });
+        }, 10000);
+
+        // Check for updates every 2 hours
+        setInterval(() => {
+            autoUpdater.checkForUpdates().catch(err => {
+                log.error('Periodic update check failed:', err);
+            });
+        }, 2 * 60 * 60 * 1000);
     }
 }
 
