@@ -44,46 +44,25 @@ function startNextServer() {
             }
         }
 
-        // Run Database Schema Fix (Direct SQL)
-        if (!isDev) {
-            try {
-                log.info('Ensuring database schema is up to date...');
-                const { PrismaClient } = require('@prisma/client');
-                const prisma = new PrismaClient({
-                    datasources: {
-                        db: {
-                            url: `file:${dbPath}`,
-                        },
-                    },
-                });
+        // Run Database Schema Fix (via API)
+        // We do this AFTER the server starts, but we define the logic here
+        const runApiMigration = async () => {
+            if (!isDev) {
+                try {
+                    log.info('Triggering database schema fix via API...');
+                    // Wait a bit for server to be fully ready
+                    await new Promise(r => setTimeout(r, 5000));
 
-                const runQuery = async (query) => {
-                    try {
-                        await prisma.$executeRawUnsafe(query);
-                        log.info(`Executed: ${query}`);
-                    } catch (e) {
-                        // Ignore "duplicate column" errors, log others
-                        if (e.message.includes('duplicate column') || e.message.includes('already exists')) {
-                            log.info(`Skipped (already exists): ${query}`);
-                        } else {
-                            log.warn(`Failed to execute: ${query}. Error: ${e.message}`);
-                        }
-                    }
-                };
-
-                // Fix for v0.3.7: Add missing columns for Products
-                await runQuery("ALTER TABLE Product ADD COLUMN commissionPercentage REAL DEFAULT 0");
-                await runQuery("ALTER TABLE Product ADD COLUMN isCombo BOOLEAN DEFAULT 0");
-                await runQuery("ALTER TABLE Product ADD COLUMN isCommissionable BOOLEAN DEFAULT 0");
-                await runQuery("ALTER TABLE Product ADD COLUMN stock INTEGER DEFAULT 0");
-
-                await prisma.$disconnect();
-                log.info('Database schema verification completed.');
-
-            } catch (err) {
-                log.error('Failed to patch database schema:', err);
+                    const response = await fetch('http://127.0.0.1:9009/api/migrate', {
+                        method: 'POST'
+                    });
+                    const result = await response.json();
+                    log.info('Migration API result:', result);
+                } catch (err) {
+                    log.error('Failed to trigger migration API:', err);
+                }
             }
-        }
+        };
 
         const env = {
             ...process.env,
@@ -115,6 +94,8 @@ function startNextServer() {
                 const output = data.toString();
                 if (output.includes('Ready') || output.includes('Listening')) {
                     resolve();
+                    // Trigger migration once server is ready
+                    runApiMigration();
                 }
             });
 
