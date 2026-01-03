@@ -40,6 +40,14 @@ export async function POST() {
         // Ensure stock is not null for existing products so inventory adjustments work
         await runQuery("UPDATE Product SET stock = 0 WHERE stock IS NULL");
 
+        // Fix for v0.3.10: Add missing columns to MonitorConfig
+        await runQuery("ALTER TABLE MonitorConfig ADD COLUMN publicAccessEnabled BOOLEAN DEFAULT 0");
+        await runQuery("ALTER TABLE MonitorConfig ADD COLUMN publicUrl TEXT");
+        await runQuery("ALTER TABLE MonitorConfig ADD COLUMN showDashboard BOOLEAN DEFAULT 1");
+        await runQuery("ALTER TABLE MonitorConfig ADD COLUMN localAccessOnly BOOLEAN DEFAULT 0");
+        await runQuery("ALTER TABLE MonitorConfig ADD COLUMN popupDuration INTEGER DEFAULT 3000");
+        await runQuery("ALTER TABLE MonitorConfig ADD COLUMN soundEnabled BOOLEAN DEFAULT 1");
+
         return NextResponse.json({ success: true, message: 'Migration completed' });
     } catch (error: any) {
         console.error('Migration API failed:', error);

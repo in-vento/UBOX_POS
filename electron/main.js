@@ -64,6 +64,45 @@ function startNextServer() {
             }
         };
 
+        const restoreTunnelState = async () => {
+            if (!isDev) {
+                try {
+                    // Wait for migration to finish
+                    await new Promise(r => setTimeout(r, 2000));
+
+                    const response = await fetch('http://127.0.0.1:9009/api/monitor/config');
+                    if (response.ok) {
+                        const config = await response.json();
+                        if (config.publicAccessEnabled) {
+                            log.info('Restoring public access tunnel...');
+                            // We need to call the internal logic of start-tunnel, but we can't call ipcMain handler directly easily.
+                            // So we duplicate the logic or extract it. For simplicity, we'll invoke the logic here.
+
+                            const port = 9009;
+                            const localtunnel = require('localtunnel');
+
+                            tunnel = await localtunnel({
+                                port: port,
+                                local_host: '127.0.0.1',
+                                subdomain: `ubox-pos-${Math.random().toString(36).substring(2, 8)}`
+                            });
+
+                            log.info(`Tunnel restored at: ${tunnel.url}`);
+
+                            // Update DB with new URL because it changes every time
+                            await fetch('http://127.0.0.1:9009/api/monitor/config', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ ...config, publicUrl: tunnel.url })
+                            });
+                        }
+                    }
+                } catch (err) {
+                    log.error('Failed to restore tunnel state:', err);
+                }
+            }
+        };
+
         const env = {
             ...process.env,
             PORT: '9009',
@@ -95,7 +134,9 @@ function startNextServer() {
                 if (output.includes('Ready') || output.includes('Listening')) {
                     resolve();
                     // Trigger migration once server is ready
-                    runApiMigration();
+                    runApiMigration().then(() => {
+                        restoreTunnelState();
+                    });
                 }
             });
 

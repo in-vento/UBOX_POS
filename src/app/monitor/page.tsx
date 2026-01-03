@@ -93,8 +93,13 @@ export default function MonitorPage() {
 
             setNotifications(prev => [...prev, order]);
 
+            // Update waiter orders if the new order belongs to the selected waiter
+            if (selectedWaiter && order.waiterId === selectedWaiter.id) {
+                setWaiterOrders(prev => [order, ...prev]);
+            }
+
             if (config?.soundEnabled) {
-                const audio = new Audio('/notification.mp3'); // Ensure this exists or use a default
+                const audio = new Audio('/notification.mp3');
                 audio.play().catch(e => console.warn('Failed to play sound:', e));
             }
 
