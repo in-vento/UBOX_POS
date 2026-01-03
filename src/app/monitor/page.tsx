@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { AnimatePresence, motion } from 'framer-motion';
+import DashboardContent from '@/components/dashboard-content';
 
 type Order = any;
 type MonitorConfig = {
@@ -35,7 +36,6 @@ export default function MonitorPage() {
     const [waiterOrders, setWaiterOrders] = useState<Order[]>([]);
     const [isLoadingOrders, setIsLoadingOrders] = useState(false);
     const [activeTab, setActiveTab] = useState<'waiters' | 'dashboard'>('waiters');
-    const [stats, setStats] = useState({ totalSales: 0, totalOrders: 0, cashSales: 0, digitalSales: 0 });
 
     const { toast } = useToast();
     const router = useRouter();
@@ -48,74 +48,92 @@ export default function MonitorPage() {
             .catch(err => console.error('Failed to fetch monitor config:', err));
     }, []);
 
-    // Fetch stats if dashboard is enabled
-    useEffect(() => {
-        if (isLoggedIn && config?.showDashboard) {
-            fetchStats();
-        }
-    }, [isLoggedIn, config]);
-
-    const fetchStats = async () => {
-        try {
-            const res = await fetch('/api/orders?limit=100');
-            const orders = await res.json();
-            const completed = orders.filter((o: any) => o.status === 'Completed');
-            const totalSales = completed.reduce((acc: number, o: any) => acc + o.totalAmount, 0);
-
-            setStats({
-                totalSales,
-                totalOrders: orders.length,
-                cashSales: totalSales * 0.6,
-                digitalSales: totalSales * 0.4
-            });
-        } catch (error) {
-            console.error('Failed to fetch stats:', error);
-        }
-    };
-
     // SSE Setup
     useEffect(() => {
         if (!isLoggedIn) return;
 
+        console.log('Initializing SSE connection...');
         const eventSource = new EventSource('/api/monitor/events');
 
         eventSource.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            if (data.connected) {
-                console.log('SSE Connected:', data.clientId);
-                return;
+            try {
+                const data = JSON.parse(event.data);
+                if (data.connected) {
+                    console.log('SSE Connected:', data.clientId);
+                    return;
+                }
+            } catch (e) {
+                // Ignore parsing errors for keep-alive or other messages
             }
         };
 
         eventSource.addEventListener('order_created', (event: any) => {
-            const order = JSON.parse(event.data);
-            console.log('New Order Received:', order);
+            try {
+                const order = JSON.parse(event.data);
+                console.log('New Order Received via SSE:', order);
 
-            setNotifications(prev => [...prev, order]);
+                setNotifications(prev => [...prev, order]);
 
-            // Update waiter orders if the new order belongs to the selected waiter
-            if (selectedWaiter && order.waiterId === selectedWaiter.id) {
-                setWaiterOrders(prev => [order, ...prev]);
+                // Update waiter orders if the new order belongs to the selected waiter
+                // We use a functional update to access the current selectedWaiter state if needed, 
+                // but since selectedWaiter is in dependency array (or we use a ref), we need to be careful.
+                // Actually, inside useEffect, selectedWaiter is stale if not in deps.
+                // But adding selectedWaiter to deps restarts SSE.
+                // Instead, we'll trigger a refresh of the orders list if the waiter matches.
+
+                // Better approach: We can't easily access selectedWaiter here without restarting SSE.
+                // So we will dispatch a custom window event or use a ref.
+                // For simplicity, let's just update the list if we can match IDs.
+
+                // We will use a global event listener or just let the user refresh? 
+                // No, the user wants real-time.
+                // Let's use a ref for selectedWaiter.
+            } catch (e) {
+                console.error('Error processing SSE event:', e);
             }
+        });
 
+        eventSource.onerror = (err) => {
+            console.error('SSE Error:', err);
+            // EventSource automatically tries to reconnect
+        };
+
+        return () => {
+            console.log('Closing SSE connection...');
+            eventSource.close();
+        };
+    }, [isLoggedIn]); // Removed config dependency to avoid reconnects on config change
+
+    // Effect to handle sound and notifications when 'notifications' state changes
+    useEffect(() => {
+        if (notifications.length > 0) {
+            const latestOrder = notifications[notifications.length - 1];
+
+            // Play sound
             if (config?.soundEnabled) {
                 const audio = new Audio('/notification.mp3');
                 audio.play().catch(e => console.warn('Failed to play sound:', e));
             }
 
-            // Auto-dismiss notification
-            setTimeout(() => {
-                setNotifications(prev => prev.filter(n => n.id !== order.id));
+            // Auto-dismiss
+            const timer = setTimeout(() => {
+                setNotifications(prev => prev.filter(n => n.id !== latestOrder.id));
             }, config?.popupDuration || 3000);
-        });
 
-        eventSource.onerror = (err) => {
-            console.error('SSE Error:', err);
-            eventSource.close();
-        };
+            return () => clearTimeout(timer);
+        }
+    }, [notifications, config]);
 
-        return () => eventSource.close();
-    }, [isLoggedIn, config]);
+    // Effect to update waiter orders list when a notification arrives
+    useEffect(() => {
+        if (notifications.length > 0 && selectedWaiter) {
+            const latestOrder = notifications[notifications.length - 1];
+            if (latestOrder.waiterId === selectedWaiter.id) {
+                setWaiterOrders(prev => [latestOrder, ...prev]);
+            }
+        }
+    }, [notifications, selectedWaiter]);
+
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -356,47 +374,8 @@ export default function MonitorPage() {
                         </Card>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Ventas Totales</CardTitle>
-                                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">S/ {stats.totalSales.toFixed(2)}</div>
-                                <p className="text-xs text-muted-foreground">Hoy hasta el momento</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Pedidos Totales</CardTitle>
-                                <Package className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">{stats.totalOrders}</div>
-                                <p className="text-xs text-muted-foreground">Incluye pendientes y completados</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Ventas Efectivo</CardTitle>
-                                <DollarSign className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">S/ {stats.cashSales.toFixed(2)}</div>
-                                <p className="text-xs text-muted-foreground">Estimado (60%)</p>
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                <CardTitle className="text-sm font-medium">Ventas Digitales</CardTitle>
-                                <CreditCard className="h-4 w-4 text-muted-foreground" />
-                            </CardHeader>
-                            <CardContent>
-                                <div className="text-2xl font-bold">S/ {stats.digitalSales.toFixed(2)}</div>
-                                <p className="text-xs text-muted-foreground">Estimado (40%)</p>
-                            </CardContent>
-                        </Card>
+                    <div className="h-full overflow-y-auto">
+                        <DashboardContent />
                     </div>
                 )}
             </main>
