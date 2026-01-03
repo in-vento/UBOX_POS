@@ -25,6 +25,21 @@ export async function POST() {
         await runQuery("ALTER TABLE Product ADD COLUMN isCommissionable BOOLEAN DEFAULT 0");
         await runQuery("ALTER TABLE Product ADD COLUMN stock INTEGER DEFAULT 0");
 
+        // Fix for v0.3.9: Create ComboItem table and fix stock
+        await runQuery(`
+            CREATE TABLE IF NOT EXISTS "ComboItem" (
+                "id" TEXT NOT NULL PRIMARY KEY,
+                "comboId" TEXT NOT NULL,
+                "productId" TEXT NOT NULL,
+                "quantity" INTEGER NOT NULL DEFAULT 1,
+                CONSTRAINT "ComboItem_comboId_fkey" FOREIGN KEY ("comboId") REFERENCES "Product" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+                CONSTRAINT "ComboItem_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+            )
+        `);
+
+        // Ensure stock is not null for existing products so inventory adjustments work
+        await runQuery("UPDATE Product SET stock = 0 WHERE stock IS NULL");
+
         return NextResponse.json({ success: true, message: 'Migration completed' });
     } catch (error: any) {
         console.error('Migration API failed:', error);
