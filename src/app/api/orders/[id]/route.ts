@@ -155,6 +155,26 @@ export async function PUT(
             }
         });
 
+        // Add to sync queue
+        try {
+            const { SyncService } = await import('@/lib/sync-service');
+            // Sync the updated order
+            await SyncService.addToQueue('Order', id, 'UPDATE', updatedOrder);
+
+            // If a new payment was added, sync it too
+            if (payment) {
+                const lastPayment = updatedOrder.payments[updatedOrder.payments.length - 1];
+                if (lastPayment) {
+                    await SyncService.addToQueue('Payment', lastPayment.id, 'CREATE', {
+                        ...lastPayment,
+                        orderId: id
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('Failed to add order update to sync queue:', e);
+        }
+
         return NextResponse.json(updatedOrder);
     } catch (error) {
         console.error('Error updating order:', error);
@@ -202,6 +222,19 @@ export async function DELETE(
                 await prisma.$executeRaw`UPDATE "Order" SET "cancelReason" = ${cancelReason}, "editedBy" = ${adminName} WHERE "id" = ${id}`;
             } catch (e) {
                 console.error("Failed to update cancelReason/editedBy via raw SQL", e);
+            }
+            // Sync the cancellation
+            try {
+                const { SyncService } = await import('@/lib/sync-service');
+                const cancelledOrder = await prisma.order.findUnique({
+                    where: { id },
+                    include: { items: { include: { product: true } }, payments: true }
+                });
+                if (cancelledOrder) {
+                    await SyncService.addToQueue('Order', id, 'UPDATE', cancelledOrder);
+                }
+            } catch (e) {
+                console.error('Failed to sync order cancellation:', e);
             }
         }
 

@@ -1,0 +1,354 @@
+﻿'use client';
+
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Logo } from '@/components/logo';
+import { Loader2, Cloud, Building, AlertCircle } from 'lucide-react';
+import { API_ENDPOINTS } from '@/lib/api-config';
+import { getHWID } from '@/lib/license';
+import { useToast } from '@/hooks/use-toast';
+
+interface Business {
+    id: string;
+    name: string;
+    slug: string;
+}
+
+export default function CloudAuthGuard({ children }: { children: React.ReactNode }) {
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [businesses, setBusinesses] = useState<Business[]>([]);
+    const [selectedBusinessId, setSelectedBusinessId] = useState<string>('');
+
+    const [step, setStep] = useState<'login' | 'business' | 'device-check' | 'license-check' | 'authorized'>('login');
+    const [deviceStatus, setDeviceStatus] = useState<{ isAuthorized: boolean; message?: string } | null>(null);
+    const [licenseStatus, setLicenseStatus] = useState<{ status: string; message?: string } | null>(null);
+
+    const [isRecovering, setIsRecovering] = useState(false);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        const checkAuth = async () => {
+            const token = localStorage.getItem('cloud_token');
+            const businessId = localStorage.getItem('business_id');
+
+            if (token && businessId) {
+                setIsAuthenticated(true);
+                setSelectedBusinessId(businessId);
+                setStep('device-check');
+                await checkDeviceStatus(businessId);
+            } else if (token) {
+                setIsAuthenticated(true);
+                setStep('business');
+                fetchBusinesses(token);
+            } else {
+                setIsAuthenticated(false);
+                setStep('login');
+            }
+        };
+        checkAuth();
+    }, []);
+
+    const fetchBusinesses = async (token: string) => {
+        try {
+            const res = await fetch(API_ENDPOINTS.AUTH.ME, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const result = await res.json();
+                const userBusinesses = result.data.businesses.map((b: any) => b.business);
+                setBusinesses(userBusinesses);
+                if (userBusinesses.length === 1) {
+                    handleBusinessSelect(userBusinesses[0].id);
+                }
+            } else {
+                handleLogout();
+            }
+        } catch (error) {
+            console.error('Failed to fetch businesses', error);
+        }
+    };
+
+    const checkDeviceStatus = async (businessId: string) => {
+        try {
+            const fingerprint = await getHWID();
+            const res = await fetch(API_ENDPOINTS.DEVICE.CHECK(fingerprint));
+
+            if (res.ok) {
+                const result = await res.json();
+                if (result.data.isAuthorized) {
+                    setStep('license-check');
+                    await checkLicense();
+                } else {
+                    setDeviceStatus({
+                        isAuthorized: false,
+                        message: 'Este dispositivo está registrado pero aún no ha sido autorizado por el administrador.'
+                    });
+                }
+            } else if (res.status === 404) {
+                await registerDevice(businessId);
+            }
+        } catch (error) {
+            console.error('Device check failed', error);
+        }
+    };
+
+    const registerDevice = async (businessId: string) => {
+        try {
+            const fingerprint = await getHWID();
+            const res = await fetch(API_ENDPOINTS.DEVICE.REGISTER, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fingerprint,
+                    name: `POS-${fingerprint.slice(0, 6)}`,
+                    businessId,
+                    role: 'POS'
+                })
+            });
+
+            if (res.ok) {
+                setDeviceStatus({
+                    isAuthorized: false,
+                    message: 'Dispositivo registrado correctamente. Esperando autorización del administrador.'
+                });
+            }
+        } catch (error) {
+            console.error('Device registration failed', error);
+        }
+    };
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+
+        try {
+            const res = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
+
+            const result = await res.json();
+
+            if (res.ok) {
+                localStorage.setItem('cloud_token', result.data.token);
+                localStorage.setItem('user_info', JSON.stringify(result.data.user));
+                setIsAuthenticated(true);
+
+                const userBusinesses = result.data.user.businesses.map((b: any) => b.business);
+                setBusinesses(userBusinesses);
+
+                if (userBusinesses.length === 1) {
+                    handleBusinessSelect(userBusinesses[0].id);
+                } else {
+                    setStep('business');
+                }
+
+                toast({ title: "Sesión Iniciada", description: "Bienvenido al sistema cloud." });
+            } else {
+                toast({
+                    title: "Error de Autenticación",
+                    description: result.error?.message || "Credenciales inválidas",
+                    variant: "destructive"
+                });
+            }
+        } catch (error) {
+            toast({ title: "Error de Conexión", description: "No se pudo conectar con el servidor cloud.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleBusinessSelect = (id: string) => {
+        localStorage.setItem('business_id', id);
+        setSelectedBusinessId(id);
+        setStep('device-check');
+        checkDeviceStatus(id);
+    };
+
+    const checkLicense = async () => {
+        try {
+            const { LicenseService } = await import('@/lib/cloud-license-service');
+            const result = await LicenseService.verifyCloudLicense();
+            
+            if (result.success) {
+                setStep('authorized');
+                await handleDataRecovery();
+            } else {
+                setLicenseStatus({
+                    status: result.status,
+                    message: result.message
+                });
+            }
+        } catch (error) {
+            console.error('License check failed', error);
+            setLicenseStatus({ status: 'ERROR', message: 'Error crítico al verificar la licencia.' });
+        }
+    };
+
+    const handleDataRecovery = async () => {
+        setIsRecovering(true);
+        try {
+            const { SyncService } = await import('@/lib/sync-service');
+            const success = await SyncService.recoverData();
+            if (success) {
+                toast({ title: "Datos Recuperados", description: "Se ha sincronizado la configuración del negocio." });
+            }
+        } catch (error) {
+            console.error('Recovery failed', error);
+        } finally {
+            setIsRecovering(false);
+        }
+    };
+
+    const handleLogout = () => {
+        localStorage.removeItem('cloud_token');
+        localStorage.removeItem('business_id');
+        localStorage.removeItem('user_info');
+        setIsAuthenticated(false);
+        setStep('login');
+    };
+
+    if (step === 'authorized') {
+        return <>{children}</>;
+    }
+
+    return (
+        <div className="flex h-screen items-center justify-center bg-muted/30 p-4">
+            <Card className="w-full max-w-md shadow-2xl border-primary/20">
+                <CardHeader className="space-y-1 text-center">
+                    <Logo className="mx-auto h-12 w-auto mb-4" />
+                    <CardTitle className="text-2xl flex items-center justify-center gap-2">
+                        <Cloud className="h-6 w-6 text-primary" />
+                        Ubox Cloud Sync
+                    </CardTitle>
+                    <CardDescription>
+                        {step === 'login' && 'Inicia sesión con tu cuenta de negocio para activar el POS.'}
+                        {step === 'business' && 'Selecciona el negocio al que pertenece este dispositivo.'}
+                        {step === 'device-check' && 'Verificando autorización del dispositivo...'}
+                        {step === 'license-check' && 'Validando suscripción y licencia...'}
+                    </CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                    {step === 'login' && (
+                        <form onSubmit={handleLogin} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Correo Electrónico</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    placeholder="admin@tu-negocio.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Contraseña</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            <Button type="submit" className="w-full" disabled={isLoading}>
+                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Iniciar Sesión Cloud'}
+                            </Button>
+                        </form>
+                    )}
+
+                    {step === 'business' && (
+                        <div className="grid gap-2">
+                            {businesses.map((b) => (
+                                <Button
+                                    key={b.id}
+                                    variant="outline"
+                                    className="justify-start h-14 gap-3"
+                                    onClick={() => handleBusinessSelect(b.id)}
+                                >
+                                    <Building className="h-5 w-5 text-primary" />
+                                    <div className="text-left">
+                                        <div className="font-bold">{b.name}</div>
+                                        <div className="text-[10px] text-muted-foreground">{b.slug}</div>
+                                    </div>
+                                </Button>
+                            ))}
+                            <Button variant="ghost" size="sm" onClick={handleLogout} className="mt-2">
+                                Usar otra cuenta
+                            </Button>
+                        </div>
+                    )}
+
+                    {step === 'device-check' && (
+                        <div className="text-center py-6 space-y-4">
+                            {!deviceStatus ? (
+                                <>
+                                    <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+                                    <p className="text-sm text-muted-foreground">
+                                        {isRecovering ? 'Recuperando datos del negocio...' : 'Sincronizando con el servidor...'}
+                                    </p>
+                                </>
+                            ) : (
+                                <>
+                                    <AlertCircle className="h-12 w-12 text-warning mx-auto" />
+                                    <p className="text-sm font-medium">{deviceStatus.message}</p>
+                                    <div className="p-3 bg-muted rounded-md border text-[10px] font-mono break-all text-left">
+                                        <p className="text-muted-foreground mb-1 uppercase font-bold">Fingerprint del Dispositivo:</p>
+                                        {localStorage.getItem('hwid') || 'Cargando...'}
+                                    </div>
+                                    <Button variant="outline" className="w-full" onClick={() => checkDeviceStatus(selectedBusinessId)}>
+                                        Reintentar Verificación
+                                    </Button>
+                                    <Button variant="ghost" size="sm" onClick={() => {
+                                        localStorage.removeItem('business_id');
+                                        setStep('business');
+                                    }}>
+                                        Cambiar Negocio
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    )}
+
+                    {step === 'license-check' && (
+                        <div className="text-center py-6 space-y-4">
+                            {!licenseStatus ? (
+                                <>
+                                    <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+                                    <p className="text-sm text-muted-foreground">Validando licencia cloud...</p>
+                                </>
+                            ) : (
+                                <>
+                                    <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
+                                    <h3 className="font-bold text-lg text-destructive">{licenseStatus.status}</h3>
+                                    <p className="text-sm text-muted-foreground">{licenseStatus.message}</p>
+                                    <Button variant="outline" className="w-full" onClick={checkLicense}>
+                                        Reintentar Validación
+                                    </Button>
+                                    <Button variant="ghost" size="sm" onClick={handleLogout}>
+                                        Cerrar Sesión
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </CardContent>
+
+                <CardFooter className="flex flex-col gap-2 text-center border-t pt-4">
+                    <p className="text-[10px] text-muted-foreground">
+                        Ubox POS SaaS - SISTEMA DE GESTIÓN INTELIGENTE
+                    </p>
+                </CardFooter>
+            </Card>
+        </div>
+    );
+}

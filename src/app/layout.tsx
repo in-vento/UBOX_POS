@@ -9,6 +9,8 @@ export const metadata: Metadata = {
 };
 
 import LicenseGuard from '@/components/license-guard';
+import CloudAuthGuard from '@/components/cloud-auth-guard';
+import SyncManager from '@/components/sync-manager';
 
 import { UpdateNotifier } from '@/components/update-notifier';
 
@@ -32,9 +34,12 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <LicenseGuard>
-          {children}
-        </LicenseGuard>
+        <SyncManager />
+        <CloudAuthGuard>
+          <LicenseGuard>
+            {children}
+          </LicenseGuard>
+        </CloudAuthGuard>
         <UpdateNotifier />
         <Toaster />
       </body>

@@ -115,6 +115,14 @@ export async function POST(request: Request) {
             }
         });
 
+        // Add to sync queue
+        try {
+            const { SyncService } = await import('@/lib/sync-service');
+            await SyncService.addToQueue('Order', order.id, 'CREATE', order);
+        } catch (e) {
+            console.error('Failed to add order to sync queue:', e);
+        }
+
         // Broadcast to monitors
         try {
             const { broadcast } = await import('@/lib/sse');
