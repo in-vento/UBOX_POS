@@ -29,6 +29,7 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
     const [deviceStatus, setDeviceStatus] = useState<{ isAuthorized: boolean; message?: string } | null>(null);
     const [licenseStatus, setLicenseStatus] = useState<{ status: string; message?: string } | null>(null);
 
+    const [fingerprint, setFingerprint] = useState<string>('');
     const [isRecovering, setIsRecovering] = useState(false);
     const { toast } = useToast();
 
@@ -76,8 +77,10 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
 
     const checkDeviceStatus = async (businessId: string) => {
         try {
-            const fingerprint = await getHWID();
-            const res = await fetch(API_ENDPOINTS.DEVICE.CHECK(fingerprint));
+            const fp = await getHWID();
+            setFingerprint(fp);
+            localStorage.setItem('hwid', fp);
+            const res = await fetch(API_ENDPOINTS.DEVICE.CHECK(fp));
 
             if (res.ok) {
                 const result = await res.json();
@@ -100,13 +103,15 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
 
     const registerDevice = async (businessId: string) => {
         try {
-            const fingerprint = await getHWID();
+            const fp = await getHWID();
+            setFingerprint(fp);
+            localStorage.setItem('hwid', fp);
             const res = await fetch(API_ENDPOINTS.DEVICE.REGISTER, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    fingerprint,
-                    name: `POS-${fingerprint.slice(0, 6)}`,
+                    fingerprint: fp,
+                    name: `POS-${fp.slice(0, 6)}`,
                     businessId,
                     role: 'POS'
                 })
@@ -176,7 +181,7 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
         try {
             const { LicenseService } = await import('@/lib/cloud-license-service');
             const result = await LicenseService.verifyCloudLicense();
-            
+
             if (result.success) {
                 setStep('authorized');
                 await handleDataRecovery();
@@ -303,17 +308,22 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
                                     <p className="text-sm font-medium">{deviceStatus.message}</p>
                                     <div className="p-3 bg-muted rounded-md border text-[10px] font-mono break-all text-left">
                                         <p className="text-muted-foreground mb-1 uppercase font-bold">Fingerprint del Dispositivo:</p>
-                                        {localStorage.getItem('hwid') || 'Cargando...'}
+                                        {fingerprint || localStorage.getItem('hwid') || 'Cargando...'}
                                     </div>
                                     <Button variant="outline" className="w-full" onClick={() => checkDeviceStatus(selectedBusinessId)}>
                                         Reintentar Verificación
                                     </Button>
-                                    <Button variant="ghost" size="sm" onClick={() => {
-                                        localStorage.removeItem('business_id');
-                                        setStep('business');
-                                    }}>
-                                        Cambiar Negocio
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button variant="ghost" size="sm" className="flex-1" onClick={() => {
+                                            localStorage.removeItem('business_id');
+                                            setStep('business');
+                                        }}>
+                                            Cambiar Negocio
+                                        </Button>
+                                        <Button variant="ghost" size="sm" className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={handleLogout}>
+                                            Cerrar Sesión
+                                        </Button>
+                                    </div>
                                 </>
                             )}
                         </div>
