@@ -296,13 +296,18 @@ app.on('window-all-closed', async () => {
 ipcMain.handle('get-hwid', async () => {
     return new Promise((resolve) => {
         if (process.platform === 'win32') {
-            exec('wmic csproduct get uuid', (error, stdout) => {
+            // Use PowerShell as it's more modern and robust than wmic (which is deprecated)
+            const cmd = 'powershell -ExecutionPolicy Bypass -Command "(Get-CimInstance Win32_ComputerSystemProduct).UUID"';
+            exec(cmd, (error, stdout) => {
                 if (error) {
-                    resolve('UNKNOWN-HWID');
+                    log.error('Failed to get HWID via PowerShell:', error);
+                    // Fallback to a simpler method if PowerShell fails
+                    exec('powershell -Command "[guid]::NewGuid().ToString()"', (e, s) => {
+                        resolve(s ? s.trim() : 'UNKNOWN-HWID');
+                    });
                 } else {
-                    const lines = stdout.split('\n');
-                    const uuid = lines.length > 1 ? lines[1].trim() : 'UNKNOWN-HWID';
-                    resolve(uuid);
+                    const uuid = stdout.trim();
+                    resolve(uuid || 'UNKNOWN-HWID');
                 }
             });
         } else {
