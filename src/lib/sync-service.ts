@@ -36,11 +36,12 @@ export class SyncService {
     static async processQueue() {
         if (this.isProcessing) return;
 
-        const token = localStorage.getItem('cloud_token');
-        const businessId = localStorage.getItem('business_id');
+        const config = await prisma.systemConfig.findFirst({ where: { id: 'default' } });
+        const token = config?.cloudToken;
+        const businessId = config?.businessId;
 
         if (!token || !businessId) {
-            console.log('[SyncService] No cloud token or business ID found. Skipping sync.');
+            console.log('[SyncService] No cloud token or business ID found in DB. Skipping sync.');
             return;
         }
 
@@ -145,8 +146,9 @@ export class SyncService {
      * Recovers configuration data from the cloud (Products, StaffUsers)
      */
     static async recoverData(): Promise<boolean> {
-        const token = localStorage.getItem('cloud_token');
-        const businessId = localStorage.getItem('business_id');
+        const config = await prisma.systemConfig.findFirst({ where: { id: 'default' } });
+        const token = config?.cloudToken;
+        const businessId = config?.businessId;
 
         if (!token || !businessId) return false;
 
@@ -222,8 +224,9 @@ export class SyncService {
      * Syncs current local configuration to the cloud
      */
     static async syncConfigToCloud(): Promise<boolean> {
-        const token = localStorage.getItem('cloud_token');
-        const businessId = localStorage.getItem('business_id');
+        const config = await prisma.systemConfig.findFirst({ where: { id: 'default' } });
+        const token = config?.cloudToken;
+        const businessId = config?.businessId;
 
         if (!token || !businessId) return false;
 

@@ -41,6 +41,14 @@ model MonitorConfig {
   updatedAt           DateTime @updatedAt
 }
 
+model SystemConfig {
+  id          String   @id @default("default")
+  cloudToken  String?
+  businessId  String?
+  fingerprint String?
+  updatedAt   DateTime @updatedAt
+}
+
 model Product {
   id                   String      @id @default(cuid())
   name                 String

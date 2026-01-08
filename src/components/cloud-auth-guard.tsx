@@ -170,9 +170,24 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
         }
     };
 
-    const handleBusinessSelect = (id: string) => {
+    const handleBusinessSelect = async (id: string) => {
         localStorage.setItem('business_id', id);
         setSelectedBusinessId(id);
+
+        // Persist to DB for Server-side SyncService
+        try {
+            await fetch('/api/system/config', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    cloudToken: localStorage.getItem('cloud_token'),
+                    businessId: id
+                })
+            });
+        } catch (e) {
+            console.error('Failed to persist config to DB', e);
+        }
+
         setStep('device-check');
         checkDeviceStatus(id);
     };
