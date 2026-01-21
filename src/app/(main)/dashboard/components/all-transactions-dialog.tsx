@@ -1,6 +1,7 @@
 
 'use client';
 import { useState, useMemo, useEffect } from 'react';
+import { useConfig } from '@/contexts/config-context';
 import { startOfWeek, startOfMonth, isWithinInterval, subDays, subYears, type Interval } from 'date-fns';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -24,7 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, Printer, MoreHorizontal, User as UserIcon, Download, Loader2 } from 'lucide-react';
+import { Search, Printer, MoreHorizontal, User as UserIcon, Download, Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import type { Order, Payment, Product, User } from '@/lib/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -40,6 +41,7 @@ type AllTransactionsDialogProps = {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
   users: User[];
+  onOpenCalendar?: () => void;
 };
 
 type Transaction = Payment & {
@@ -58,9 +60,10 @@ export default function AllTransactionsDialog({
   isOpen,
   onOpenChange,
   users,
+  onOpenCalendar,
 }: AllTransactionsDialogProps) {
 
-
+  const { config } = useConfig();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('today');
   const [selectedTransactions, setSelectedTransactions] = useState<string[]>([]);
@@ -344,10 +347,25 @@ export default function AllTransactionsDialog({
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
           <DialogHeader>
-            <DialogTitle>Auditoría de Transacciones</DialogTitle>
-            <DialogDescription>
-              Busca y filtra todas las transacciones registradas en el sistema.
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle>Auditoría de Transacciones</DialogTitle>
+                <DialogDescription>
+                  Busca y filtra todas las transacciones registradas en el sistema.
+                </DialogDescription>
+              </div>
+              {onOpenCalendar && (
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={onOpenCalendar}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <CalendarIcon className="mr-2 h-5 w-5" />
+                  CALENDARIO
+                </Button>
+              )}
+            </div>
           </DialogHeader>
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-grow">
@@ -360,7 +378,7 @@ export default function AllTransactionsDialog({
                 onChange={e => setSearchTerm(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button variant={activeFilter === 'today' ? 'default' : 'outline'} onClick={() => setActiveFilter('today')}>Hoy</Button>
               <Button variant={activeFilter === 'week' ? 'default' : 'outline'} onClick={() => setActiveFilter('week')}>Semana</Button>
               <Button variant={activeFilter === 'month' ? 'default' : 'outline'} onClick={() => setActiveFilter('month')}>Mes</Button>
@@ -508,7 +526,7 @@ export default function AllTransactionsDialog({
                 </div>
                 {masajistasForDetailedOrder.length > 0 && (
                   <div className="space-y-2">
-                    <h4 className="font-medium text-sm">Masajistas Asignados</h4>
+                    <h4 className="font-medium text-sm">{config.masajistaRoleNamePlural} Asignados</h4>
                     <ul className="grid gap-2 rounded-md border p-4">
                       {masajistasForDetailedOrder.map((masajista) => (
                         <li key={masajista.id} className="flex items-center gap-2 text-sm">

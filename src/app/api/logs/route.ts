@@ -51,6 +51,14 @@ export async function POST(request: Request) {
             },
         });
 
+        // Add to sync queue
+        try {
+            const { SyncService } = await import('@/lib/sync-service');
+            await SyncService.addToQueue('Log', log.id, 'CREATE', log);
+        } catch (e) {
+            console.error('Failed to add log to sync queue:', e);
+        }
+
         return NextResponse.json(log);
     } catch (error) {
         console.error('Error creating log:', error);

@@ -1,6 +1,7 @@
 
 'use client';
 import { useState, useEffect } from 'react';
+import { useConfig } from '@/contexts/config-context';
 import {
   Card,
   CardContent,
@@ -111,6 +112,7 @@ export default function StaffUserAccounts({
   initialUsers: User[];
   onDataChange: () => void;
 }) {
+  const { config } = useConfig();
   const [users, setUsers] = useState<User[]>(
     initialUsers.filter((u) => u.role !== 'Masajista')
   );
@@ -347,6 +349,8 @@ export default function StaffUserAccounts({
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+
+
   return (
     <>
       <Card>
@@ -415,7 +419,7 @@ export default function StaffUserAccounts({
                           : roleVariant[user.role]
                       }
                     >
-                      {user.role}
+                      {user.role === 'Masajista' ? config.masajistaRoleName : user.role}
                     </Badge>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
@@ -758,7 +762,7 @@ export default function StaffUserAccounts({
         {/* ... Permissions Dialog Content ... */}
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Permisos para {selectedUser?.role}</DialogTitle>
+            <DialogTitle>Permisos para {selectedUser?.role === 'Masajista' ? config.masajistaRoleName : selectedUser?.role}</DialogTitle>
             <DialogDescription>
               Estos son los permisos asignados al rol de {selectedUser?.name}.
             </DialogDescription>

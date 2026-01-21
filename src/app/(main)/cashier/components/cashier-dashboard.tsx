@@ -11,6 +11,7 @@ import {
   Search,
   Printer,
   Wallet,
+  Eye,
 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
@@ -41,7 +42,17 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 import type { Order, Payment, User as UserType } from '@/lib/types';
+import { useConfig } from '@/contexts/config-context';
 
 
 type RecentTransaction = {
@@ -57,6 +68,9 @@ type RecentTransaction = {
 
 export default function CashierDashboard({ currentOrders = [], allUsers = [], cashierInCharge, shiftStartTime }: { currentOrders: Order[], allUsers: UserType[], cashierInCharge?: Partial<UserType>, shiftStartTime?: Date | null }) {
   const [masajistaSearchTerm, setMasajistaSearchTerm] = useState('');
+  const [selectedMasajistaForDetails, setSelectedMasajistaForDetails] = useState<UserType | null>(null);
+  const [isCommissionDetailsOpen, setIsCommissionDetailsOpen] = useState(false);
+  const { config } = useConfig();
 
   const totalSales = useMemo(() => {
     return (currentOrders || []).reduce((sum, order) => {
@@ -355,16 +369,16 @@ export default function CashierDashboard({ currentOrders = [], allUsers = [], ca
               <div>
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <Percent className="h-4 w-4 text-muted-foreground" />
-                  Comisión de Masajistas
+                  Comisión de {config.masajistaRoleNamePlural}
                 </CardTitle>
-                <CardDescription className="pt-2">Comisión total del día por masajista activo.</CardDescription>
+                <CardDescription className="pt-2">Comisión total del día por {config.masajistaRoleName.toLowerCase()} activo.</CardDescription>
               </div>
             </div>
             <div className="relative mt-4">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Buscar masajista..."
+                placeholder={`Buscar ${config.masajistaRoleName.toLowerCase()}...`}
                 className="pl-8"
                 value={masajistaSearchTerm}
                 onChange={(e) => setMasajistaSearchTerm(e.target.value)}
@@ -410,6 +424,13 @@ export default function CashierDashboard({ currentOrders = [], allUsers = [], ca
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => {
+                              setSelectedMasajistaForDetails(staff);
+                              setIsCommissionDetailsOpen(true);
+                            }}>
+                              <Eye className="mr-2 h-4 w-4" />
+                              Ver Detalles
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handlePrintCommission(staff.name, commissionAmount)}>
                               <Printer className="mr-2 h-4 w-4" />
                               Imprimir Ticket de Comisión
@@ -429,6 +450,143 @@ export default function CashierDashboard({ currentOrders = [], allUsers = [], ca
           <StaffSalesChart orders={currentOrders} users={allUsers} shiftStartTime={shiftStartTime} />
         </div>
       </div>
+
+      {/* Commission Details Dialog */}
+      {selectedMasajistaForDetails && (
+        <Dialog open={isCommissionDetailsOpen} onOpenChange={setIsCommissionDetailsOpen}>
+          <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Detalle de Comisión: {selectedMasajistaForDetails.name}</DialogTitle>
+              <DialogDescription>
+                Pedidos asignados durante el turno actual. Comisión: {selectedMasajistaForDetails.commission || 32}%
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4">
+              {(() => {
+                // Get all completed orders for this masajista in current shift
+                const masajistaOrders = currentOrders.filter(order => {
+                  if (order.status !== 'Completed') return false;
+                  if (!order.masajistaIds?.includes(selectedMasajistaForDetails.id)) return false;
+                  if (shiftStartTime && new Date(order.updatedAt) <= shiftStartTime) return false;
+                  return true;
+                });
+
+                const masajistaDefaultPercentage = (selectedMasajistaForDetails.commission || 32) / 100;
+
+                // Calculate total commission
+                let totalCommission = 0;
+                masajistaOrders.forEach(order => {
+                  const orderCommission = (order.products || []).reduce((sum, product) => {
+                    if (product.isCommissionable) {
+                      const productPercentage = product.commissionPercentage || 0;
+                      const effectivePercentage = productPercentage > 0 ? (productPercentage / 100) : masajistaDefaultPercentage;
+                      return sum + (product.price * effectivePercentage * (product.quantity || 1));
+                    }
+                    return sum;
+                  }, 0);
+                  totalCommission += orderCommission / (order.masajistaIds?.length || 1);
+                });
+
+                return (
+                  <>
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="rounded-lg border p-4">
+                        <div className="text-sm text-muted-foreground">Total de Pedidos</div>
+                        <div className="text-2xl font-bold">{masajistaOrders.length}</div>
+                      </div>
+                      <div className="rounded-lg border p-4">
+                        <div className="text-sm text-muted-foreground">Total en Ventas</div>
+                        <div className="text-2xl font-bold">
+                          S/ {masajistaOrders.reduce((sum, o) => sum + o.totalAmount, 0).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                      <div className="rounded-lg border p-4 bg-green-50">
+                        <div className="text-sm text-muted-foreground">Total en Comisiones</div>
+                        <div className="text-2xl font-bold text-green-600">
+                          S/ {totalCommission.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                        </div>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Orders List */}
+                    {masajistaOrders.length > 0 ? (
+                      <div className="space-y-4">
+                        <h4 className="font-medium text-sm">Pedidos del Turno</h4>
+                        {masajistaOrders.map(order => {
+                          const orderCommission = (order.products || []).reduce((sum, product) => {
+                            if (product.isCommissionable) {
+                              const productPercentage = product.commissionPercentage || 0;
+                              const effectivePercentage = productPercentage > 0 ? (productPercentage / 100) : masajistaDefaultPercentage;
+                              return sum + (product.price * effectivePercentage * (product.quantity || 1));
+                            }
+                            return sum;
+                          }, 0) / (order.masajistaIds?.length || 1);
+
+                          return (
+                            <div key={order.id} className="rounded-lg border p-4 space-y-3">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="font-medium">Pedido: {order.customId || order.id.slice(-6)}</div>
+                                  <div className="text-sm text-muted-foreground">Cliente: {order.customer}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {new Date(order.updatedAt).toLocaleString('es-PE')}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-medium">S/ {order.totalAmount.toLocaleString('es-PE', { minimumFractionDigits: 2 })}</div>
+                                  <div className="text-sm text-green-600 font-medium">
+                                    Comisión: S/ {orderCommission.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Products */}
+                              <div className="space-y-1">
+                                <div className="text-xs font-medium text-muted-foreground">Productos Comisionables:</div>
+                                {(order.products || []).filter(p => p.isCommissionable).map(product => {
+                                  const productPercentage = product.commissionPercentage || 0;
+                                  const effectivePercentage = productPercentage > 0 ? productPercentage : (selectedMasajistaForDetails.commission || 32);
+                                  const productCommission = (product.price * (effectivePercentage / 100) * (product.quantity || 1)) / (order.masajistaIds?.length || 1);
+
+                                  return (
+                                    <div key={product.id} className="flex justify-between text-xs bg-muted/30 p-2 rounded">
+                                      <span>{product.name} x{product.quantity} ({effectivePercentage}%)</span>
+                                      <span className="font-medium text-green-600">
+                                        S/ {productCommission.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                                {(order.products || []).filter(p => p.isCommissionable).length === 0 && (
+                                  <div className="text-xs text-muted-foreground italic">No hay productos comisionables en este pedido</div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        No hay pedidos asignados a esta masajista en el turno actual
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCommissionDetailsOpen(false)}>
+                Cerrar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

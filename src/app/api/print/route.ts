@@ -46,6 +46,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Faltan datos para la impresión.' }, { status: 400 });
         }
 
+        // Fetch AppConfig for dynamic role names
+        const config = await prisma.appConfig.findUnique({
+            where: { id: 'default' }
+        }) || { masajistaRoleName: 'Masajista', masajistaRoleNamePlural: 'Masajistas' };
+
         let receiptData;
         if (type === 'test') {
             const { printerName } = body;
@@ -54,13 +59,13 @@ export async function POST(req: NextRequest) {
             receiptData = buildBarTicketData(order, waiterName || 'Mozo');
         } else if (type === 'commission-ticket') {
             const { staffName, amount } = body;
-            receiptData = buildCommissionTicketData(staffName, amount);
+            receiptData = buildCommissionTicketData(staffName, amount, config.masajistaRoleName);
         } else if (type === 'audit-ticket') {
-            receiptData = buildAuditTicketData(order, cashierName || 'Admin');
+            receiptData = buildAuditTicketData(order, cashierName || 'Admin', config.masajistaRoleNamePlural);
         } else if (type === 'shift-report') {
             receiptData = buildShiftReportData(body.reportData);
         } else if (type === 'cashier-report') {
-            receiptData = buildCashierReportData(body.reportData);
+            receiptData = buildCashierReportData(body.reportData, config.masajistaRoleNamePlural);
         } else {
             receiptData = buildReceiptData(order, cashierName || 'Cajero', paymentDetails, waiterName);
         }

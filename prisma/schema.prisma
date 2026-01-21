@@ -49,6 +49,13 @@ model SystemConfig {
   updatedAt   DateTime @updatedAt
 }
 
+model AppConfig {
+  id                      String   @id @default("default")
+  masajistaRoleName       String   @default("Masajista")
+  masajistaRoleNamePlural String   @default("Masajistas")
+  updatedAt               DateTime @updatedAt
+}
+
 model Product {
   id                   String      @id @default(cuid())
   name                 String
@@ -75,21 +82,22 @@ model ComboItem {
 }
 
 model Order {
-  id           String      @id @default(cuid())
-  customId     String?     @unique // Custom ID format: XX-NNNNNN (e.g., JU-000001)
-  waiterId     String?
-  waiter       User?       @relation("WaiterOrders", fields: [waiterId], references: [id])
-  customer     String      @default("Cliente General")
-  status       String      @default("Pending") // 'Pending', 'Completed', 'Cancelled'
-  totalAmount  Float       @default(0)
-  paidAmount   Float       @default(0)
-  masajistaIds String? // JSON array of masajista IDs
-  editedBy     String? // Name of the admin who last edited or cancelled the order
-  cancelReason String? // Reason why the order was cancelled
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  items        OrderItem[]
-  payments     Payment[]
+  id             String          @id @default(cuid())
+  customId       String?         @unique // Custom ID format: XX-NNNNNN (e.g., JU-000001)
+  waiterId       String?
+  waiter         User?           @relation("WaiterOrders", fields: [waiterId], references: [id])
+  customer       String          @default("Cliente General")
+  status         String          @default("Pending") // 'Pending', 'Completed', 'Cancelled'
+  totalAmount    Float           @default(0)
+  paidAmount     Float           @default(0)
+  masajistaIds   String? // JSON array of masajista IDs
+  editedBy       String? // Name of the admin who last edited or cancelled the order
+  cancelReason   String? // Reason why the order was cancelled
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  items          OrderItem[]
+  payments       Payment[]
+  sunatDocuments SunatDocument[]
 }
 
 model OrderItem {
@@ -150,4 +158,87 @@ model SyncQueue {
 
   @@index([status])
   @@map("sync_queue")
+}
+
+// ============================================
+// SUNAT Electronic Billing Models
+// ============================================
+
+model Client {
+  id          String          @id @default(cuid())
+  tipoDoc     String // "DNI" | "RUC" | "CE" | "PASAPORTE"
+  numDoc      String          @unique
+  razonSocial String // Nombre completo o Razón Social
+  direccion   String?
+  email       String?
+  telefono    String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  documents   SunatDocument[]
+}
+
+model SunatDocument {
+  id           String              @id @default(cuid())
+  orderId      String
+  order        Order               @relation(fields: [orderId], references: [id])
+  clientId     String?
+  client       Client?             @relation(fields: [clientId], references: [id])
+  documentType String // "01" Factura, "03" Boleta, "07" Nota Crédito, "08" Nota Débito
+  serie        String // e.g., "F001", "B001"
+  correlativo  Int
+  fullNumber   String // e.g., "F001-00000123"
+  fechaEmision DateTime            @default(now())
+  moneda       String              @default("PEN")
+  subtotal     Float
+  igv          Float
+  total        Float
+  status       String              @default("DRAFT") // DRAFT | ENVIADO | ACEPTADO | RECHAZADO | PENDIENTE
+  provider     String? // "nubefact" | "efact" | "bizlinks" | "digiflow" | "mock"
+  hash         String?
+  pdfUrl       String?
+  xmlUrl       String?
+  cdrUrl       String?
+  errorMessage String?
+  retryCount   Int                 @default(0)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  items        SunatDocumentItem[]
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model SunatDocumentItem {
+  id             String        @id @default(cuid())
+  documentId     String
+  document       SunatDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  descripcion    String
+  cantidad       Float
+  valorUnitario  Float // Precio sin IGV
+  precioUnitario Float // Precio con IGV
+  igv            Float
+  total          Float
+}
+
+model CompanySunatConfig {
+  id                 String   @id @default("default")
+  sunatEnabled       Boolean  @default(false)
+  provider           String   @default("mock") // "mock" | "nubefact" | "efact" | etc.
+  ruc                String?
+  razonSocial        String?
+  nombreComercial    String?
+  direccion          String?
+  ubigeo             String?
+  departamento       String?
+  provincia          String?
+  distrito           String?
+  regimen            String? // "GENERAL" | "MYPE" | "RER"
+  serieFactura       String   @default("F001")
+  serieBoleta        String   @default("B001")
+  correlativoFactura Int      @default(0)
+  correlativoBoleta  Int      @default(0)
+  pseToken           String? // Encrypted
+  pseUrl             String?
+  pseRucUsuario      String? // For Nubefact
+  updatedAt          DateTime @updatedAt
 }

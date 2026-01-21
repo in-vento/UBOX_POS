@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useEffect, useMemo } from 'react';
+import { useConfig } from '@/contexts/config-context';
 import {
     Activity,
     ArrowUpRight,
@@ -38,15 +40,16 @@ import {
 } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import SalesReport from '@/app/(main)/dashboard/components/sales-report';
-import { useEffect, useMemo, useState } from 'react';
 import type { Order, Product, User } from '@/lib/types';
 import AllTransactionsDialog from '@/app/(main)/dashboard/components/all-transactions-dialog';
+import CalendarAuditDialog from '@/app/(main)/dashboard/components/calendar-audit-dialog';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
 export default function DashboardContent() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [users, setUsers] = useState<User[]>([]);
+    const { config } = useConfig();
     const [isLoadingOrders, setIsLoadingOrders] = useState(true);
     const [isLoadingUsers, setIsLoadingUsers] = useState(true);
 
@@ -106,6 +109,7 @@ export default function DashboardContent() {
     }, []);
 
     const [isAllTransactionsOpen, setIsAllTransactionsOpen] = useState(false);
+    const [isCalendarAuditOpen, setIsCalendarAuditOpen] = useState(false);
     const [detailedOrder, setDetailedOrder] = useState<Order | null>(null);
     const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
     const [shiftStartTime, setShiftStartTime] = useState<Date | null>(null);
@@ -343,7 +347,21 @@ export default function DashboardContent() {
                 <SalesReport />
             </div>
 
-            <AllTransactionsDialog isOpen={isAllTransactionsOpen} onOpenChange={setIsAllTransactionsOpen} users={users || []} />
+            <AllTransactionsDialog
+                isOpen={isAllTransactionsOpen}
+                onOpenChange={setIsAllTransactionsOpen}
+                users={users || []}
+                onOpenCalendar={() => {
+                    setIsAllTransactionsOpen(false);
+                    setIsCalendarAuditOpen(true);
+                }}
+            />
+
+            <CalendarAuditDialog
+                isOpen={isCalendarAuditOpen}
+                onOpenChange={setIsCalendarAuditOpen}
+                users={users || []}
+            />
 
             {detailedOrder && (
                 <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
@@ -367,7 +385,7 @@ export default function DashboardContent() {
                                 </div>
                                 {masajistasForDetailedOrder.length > 0 && (
                                     <div className="space-y-2">
-                                        <h4 className="font-medium text-sm">Masajistas Asignados</h4>
+                                        <h4 className="font-medium text-sm">{config.masajistaRoleNamePlural} Asignados</h4>
                                         <ul className="grid gap-2 rounded-md border p-4">
                                             {masajistasForDetailedOrder.map((masajista) => (
                                                 <li key={masajista.id} className="flex items-center gap-2 text-sm"><UserIcon className="h-4 w-4 text-muted-foreground" /><span>{masajista.name}</span></li>

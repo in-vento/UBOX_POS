@@ -218,7 +218,7 @@ export function buildBarTicketData(order: any, waiterName: string): string {
     return buffer;
 }
 
-export function buildCommissionTicketData(staffName: string, amount: number): string {
+export function buildCommissionTicketData(staffName: string, amount: number, roleName: string = 'Masajista'): string {
     let buffer = '';
 
     // Helper to append text
@@ -240,7 +240,7 @@ export function buildCommissionTicketData(staffName: string, amount: number): st
 
     // Info
     add(COMMANDS.ALIGN.LEFT);
-    addLine(`Masajista: ${staffName}`);
+    addLine(`${roleName}: ${staffName}`);
     addLine('--------------------------------');
 
     // Total
@@ -264,7 +264,7 @@ export function buildCommissionTicketData(staffName: string, amount: number): st
     return buffer;
 }
 
-export function buildAuditTicketData(order: any, cashierName: string): string {
+export function buildAuditTicketData(order: any, cashierName: string, roleNamePlural: string = 'Masajistas'): string {
     console.log('buildAuditTicketData received order:', JSON.stringify(order, null, 2));
     let buffer = '';
 
@@ -329,7 +329,7 @@ export function buildAuditTicketData(order: any, cashierName: string): string {
     // Masajistas & Comision
     if (order.masajistas && order.masajistas.length > 0) {
         add(COMMANDS.TEXT_FORMAT.BOLD);
-        addLine('Masajistas Asignados');
+        addLine(`${roleNamePlural} Asignados`);
         add(COMMANDS.TEXT_FORMAT.NORMAL);
 
         order.masajistas.forEach((m: any) => {
@@ -439,7 +439,7 @@ export function buildCashierReportData(data: {
     staffCommissionPool: number,
     activeStaff: any[],
     commissionPerStaff: number
-}): string {
+}, roleNamePlural: string = 'MASAJISTAS'): string {
     let buffer = '';
     const add = (text: string) => { buffer += text; };
     const addLine = (text: string = '') => { buffer += text + LF; };
@@ -475,7 +475,7 @@ export function buildCashierReportData(data: {
     addLine('--------------------------------');
 
     add(COMMANDS.TEXT_FORMAT.BOLD);
-    addLine('COMISIONES MASAJISTAS:');
+    addLine(`COMISIONES ${roleNamePlural.toUpperCase()}:`);
     add(COMMANDS.TEXT_FORMAT.NORMAL);
     if (data.masajistaCommissions.length > 0) {
         data.masajistaCommissions.forEach(item => {

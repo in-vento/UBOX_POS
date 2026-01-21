@@ -51,6 +51,7 @@ export default function BarPage() {
   const userId = searchParams.get('id');
   const isAdminOrBoss = role === 'admin' || role === 'boss';
 
+
   const [inventory, setInventory] = useState<Beverage[]>([]);
   const [activeBarmen, setActiveBarmen] = useState<UserType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -318,40 +319,42 @@ export default function BarPage() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2 flex-wrap justify-end">
-                  <Button
-                    size="sm"
-                    className="h-8 gap-1"
-                    onClick={() => setIsAddStockDialogOpen(true)}
-                  >
-                    <PlusCircle className="h-3.5 w-3.5" />
-                    <span className="hidden sm:whitespace-nowrap md:hidden lg:inline">
-                      Añadir/Recibir Stock
-                    </span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="h-8 gap-1"
-                    onClick={() => setIsReportDialogOpen(true)}
-                    disabled={shiftState === 'closing'}
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    <span className="hidden sm:whitespace-nowrap md:hidden lg:inline">
-                      Cerrar Turno
-                    </span>
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="h-8 gap-1 bg-green-600 text-white hover:bg-green-700"
-                    onClick={handleReceiveShift}
-                    disabled={shiftState === 'active'}
-                  >
-                    <CheckCircle className="h-3.5 w-3.5" />
-                    <span className="hidden sm:whitespace-nowrap md:hidden lg:inline">
-                      Recibir Turno
-                    </span>
-                  </Button>
+                  <>
+                    <Button
+                      size="sm"
+                      className="h-8 gap-1"
+                      onClick={() => setIsAddStockDialogOpen(true)}
+                    >
+                      <PlusCircle className="h-3.5 w-3.5" />
+                      <span className="hidden sm:whitespace-nowrap md:hidden lg:inline">
+                        Añadir/Recibir Stock
+                      </span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-8 gap-1"
+                      onClick={() => setIsReportDialogOpen(true)}
+                      disabled={shiftState === 'closing'}
+                    >
+                      <LogOut className="h-3.5 w-3.5" />
+                      <span className="hidden sm:whitespace-nowrap md:hidden lg:inline">
+                        Cerrar Turno
+                      </span>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="h-8 gap-1 bg-green-600 text-white hover:bg-green-700"
+                      onClick={handleReceiveShift}
+                      disabled={shiftState === 'active'}
+                    >
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      <span className="hidden sm:whitespace-nowrap md:hidden lg:inline">
+                        Recibir Turno
+                      </span>
+                    </Button>
+                  </>
                 </div>
               </div>
             </CardHeader>

@@ -1,10 +1,9 @@
 
 'use client';
 
-import Image from 'next/image';
-import Link from 'next/link';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useState, useMemo, useEffect } from 'react';
+import Image from 'next/image';
 
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';

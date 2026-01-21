@@ -1,4 +1,4 @@
-﻿import { API_ENDPOINTS } from './api-config';
+import { API_ENDPOINTS } from './api-config';
 import { getHWID } from './license';
 
 export interface LicenseStatus {
@@ -109,5 +109,68 @@ export class LicenseService {
     } catch (e) {
       return { success: false, status: 'ERROR', message: 'Error al leer la licencia local.' };
     }
+  }
+
+  /**
+   * Generates a new license for a business
+   */
+  static async generateLicense(planType: string, businessData: any): Promise<{
+    success: boolean;
+    licenseKey?: string;
+    message: string;
+  }> {
+    try {
+      const businessId = localStorage.getItem('business_id');
+      const token = localStorage.getItem('cloud_token');
+
+      const response = await fetch('/api/licenses/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+        body: JSON.stringify({
+          businessId,
+          planType,
+          ...businessData,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        return {
+          success: true,
+          licenseKey: result.data.licenseKey,
+          message: 'Licencia generada exitosamente'
+        };
+      } else {
+        return {
+          success: false,
+          message: result.error?.message || 'Error al generar licencia'
+        };
+      }
+    } catch (error) {
+      console.error('License generation error:', error);
+      return {
+        success: false,
+        message: 'Error de conexión con el servidor'
+      };
+    }
+  }
+
+  /**
+   * Gets stored license from cache
+   */
+  static getStoredLicense(): any | null {
+    const cache = localStorage.getItem(this.CACHE_KEY);
+    return cache ? JSON.parse(cache) : null;
+  }
+
+  /**
+   * Clears stored license cache
+   */
+  static clearStoredLicense(): void {
+    localStorage.removeItem(this.CACHE_KEY);
   }
 }

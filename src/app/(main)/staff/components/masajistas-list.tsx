@@ -1,6 +1,7 @@
 
 'use client';
 import { useState, useEffect } from 'react';
+import { useConfig } from '@/contexts/config-context';
 import {
   Card,
   CardContent,
@@ -60,6 +61,7 @@ export default function MasajistasList({
 }) {
   const [masajistas, setMasajistas] = useState<User[]>([]);
   const [selectedMasajista, setSelectedMasajista] = useState<User | null>(null);
+  const { config } = useConfig();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
@@ -109,7 +111,7 @@ export default function MasajistasList({
           method: 'DELETE',
         });
         toast({
-          title: `Masajista Eliminado`,
+          title: `${config.masajistaRoleName} Eliminado`,
           description: `${selectedMasajista.name} ha sido eliminado de la lista.`,
           variant: 'destructive',
         });
@@ -121,10 +123,8 @@ export default function MasajistasList({
           body: JSON.stringify({ status: newStatus }),
         });
         toast({
-          title: `Masajista ${newStatus === 'Active' ? 'Activado' : 'Desactivado'
-            }`,
-          description: `${selectedMasajista.name} ha sido ${newStatus === 'Active' ? 'activado' : 'desactivado'
-            }.`,
+          title: `${config.masajistaRoleName} ${newStatus === 'Active' ? 'Activado' : 'Desactivado'}`,
+          description: `${selectedMasajista.name} ha sido ${newStatus === 'Active' ? 'activado' : 'desactivado'}.`,
         });
       }
       onDataChange();
@@ -157,7 +157,7 @@ export default function MasajistasList({
         body: JSON.stringify({ name, phone, commission }),
       });
       toast({
-        title: 'Masajista Actualizado',
+        title: `${config.masajistaRoleName} Actualizado`,
         description: `Los datos de ${name} han sido guardados.`,
       });
       onDataChange();
@@ -166,7 +166,7 @@ export default function MasajistasList({
       console.error('Error updating user:', error);
       toast({
         title: 'Error',
-        description: 'No se pudo actualizar el masajista.',
+        description: `No se pudo actualizar el ${config.masajistaRoleName.toLowerCase()}.`,
         variant: 'destructive',
       });
     }
@@ -196,8 +196,8 @@ export default function MasajistasList({
           }),
         });
         toast({
-          title: 'Masajista Añadido',
-          description: `${name} ha sido añadido a la lista de masajistas.`,
+          title: `${config.masajistaRoleName} Añadido`,
+          description: `${name} ha sido añadido a la lista de ${config.masajistaRoleNamePlural.toLowerCase()}.`,
         });
         onDataChange();
         handleCloseDialogs();
@@ -205,7 +205,7 @@ export default function MasajistasList({
         console.error('Error adding user:', error);
         toast({
           title: 'Error',
-          description: 'No se pudo añadir el masajista.',
+          description: `No se pudo añadir el ${config.masajistaRoleName.toLowerCase()}.`,
           variant: 'destructive',
         });
       }
@@ -217,9 +217,9 @@ export default function MasajistasList({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div>
-            <CardTitle>Lista de Masajistas</CardTitle>
+            <CardTitle>Lista de {config.masajistaRoleNamePlural}</CardTitle>
             <CardDescription>
-              Personal disponible para servicios de masajes.
+              Personal disponible para servicios de {config.masajistaRoleNamePlural.toLowerCase()}.
             </CardDescription>
           </div>
           <Button
@@ -229,7 +229,7 @@ export default function MasajistasList({
           >
             <PlusCircle className="h-3.5 w-3.5" />
             <span className="hidden sm:whitespace-nowrap md:hidden lg:inline">
-              Añadir Masajista
+              Añadir {config.masajistaRoleName}
             </span>
           </Button>
         </CardHeader>
@@ -238,7 +238,7 @@ export default function MasajistasList({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Masajista</TableHead>
+                  <TableHead>{config.masajistaRoleName}</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Comisión Base</TableHead>
                   <TableHead className="w-[100px] text-right">
@@ -332,9 +332,9 @@ export default function MasajistasList({
         <DialogContent>
           <form onSubmit={handleAddMasajista}>
             <DialogHeader>
-              <DialogTitle>Añadir Nuevo Masajista</DialogTitle>
+              <DialogTitle>Añadir Nuevo {config.masajistaRoleName}</DialogTitle>
               <DialogDescription>
-                Complete los detalles para añadir un nuevo masajista. El rol se
+                Complete los detalles para añadir un nuevo {config.masajistaRoleName.toLowerCase()}. El rol se
                 asignará automáticamente.
               </DialogDescription>
             </DialogHeader>
@@ -379,7 +379,7 @@ export default function MasajistasList({
               >
                 Cancelar
               </Button>
-              <Button type="submit">Añadir Masajista</Button>
+              <Button type="submit">Añadir {config.masajistaRoleName}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -389,7 +389,7 @@ export default function MasajistasList({
         <DialogContent>
           <form onSubmit={handleSaveChanges}>
             <DialogHeader>
-              <DialogTitle>Editar Masajista</DialogTitle>
+              <DialogTitle>Editar {config.masajistaRoleName}</DialogTitle>
               <DialogDescription>
                 Realice cambios en el perfil de {selectedMasajista?.name}.
               </DialogDescription>
@@ -475,7 +475,7 @@ export default function MasajistasList({
             <AlertDialogTitle>¿Estás seguro de eliminar?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta acción es permanente y no se puede deshacer. Se eliminará al
-              masajista {selectedMasajista?.name} de la lista.
+              {config.masajistaRoleName.toLowerCase()} {selectedMasajista?.name} de la lista.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

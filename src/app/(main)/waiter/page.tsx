@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useConfig } from '@/contexts/config-context';
 import { PageHeader } from '@/components/page-header';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -50,6 +51,7 @@ export default function WaiterPage() {
     const [cart, setCart] = useState<CartItem[]>([]);
     const [customerName, setCustomerName] = useState('');
     const [selectedMasajistas, setSelectedMasajistas] = useState<string[]>([]);
+    const { config } = useConfig();
     const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
     const [manualWaiterId, setManualWaiterId] = useState<string>('');
 
@@ -510,7 +512,7 @@ export default function WaiterPage() {
                                     {/* Selección de Masajistas (Opcional) */}
                                     {masajistas.length > 0 && (
                                         <div className="space-y-1">
-                                            <Label className="text-xs">Masajistas (Opcional)</Label>
+                                            <Label className="text-xs">{config.masajistaRoleNamePlural} (Opcional)</Label>
                                             <Select
                                                 onValueChange={(val) => {
                                                     if (!selectedMasajistas.includes(val)) {
@@ -519,7 +521,7 @@ export default function WaiterPage() {
                                                 }}
                                             >
                                                 <SelectTrigger className="h-8 text-xs">
-                                                    <SelectValue placeholder="Agregar masajista" />
+                                                    <SelectValue placeholder={`Agregar ${config.masajistaRoleName.toLowerCase()}`} />
                                                 </SelectTrigger>
                                                 <SelectContent>
                                                     {masajistas.map(m => (

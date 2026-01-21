@@ -112,8 +112,7 @@ export default function EndOfDayReportDialog({
     const activeStaff = users.filter(u =>
       u.status === 'Active' &&
       ['administrador', 'admin', 'mozo', 'cajero', 'barman'].includes(u.role.toLowerCase()) &&
-      u.role.toLowerCase() !== 'super administrador' &&
-      u.name.toLowerCase() !== 'johan'
+      u.role.toLowerCase() !== 'super administrador'
     );
     const staffCommissionPool = totalSales * 0.10;
     const commissionPerStaff = activeStaff.length > 0 ? staffCommissionPool / activeStaff.length : 0;

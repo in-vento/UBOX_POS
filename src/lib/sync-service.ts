@@ -1,7 +1,7 @@
 import { prisma } from './prisma';
 import { API_ENDPOINTS } from './api-config';
 
-export type SyncEntity = 'Order' | 'Payment' | 'Product' | 'User';
+export type SyncEntity = 'Order' | 'Payment' | 'Product' | 'User' | 'Log' | 'SunatDocument' | 'Client';
 export type SyncAction = 'CREATE' | 'UPDATE' | 'DELETE';
 
 export class SyncService {
@@ -11,6 +11,12 @@ export class SyncService {
      * Adds an item to the synchronization queue
      */
     static async addToQueue(entity: SyncEntity, entityId: string, action: SyncAction, payload: any) {
+        // Skip if running in browser
+        if (typeof window !== 'undefined') {
+            console.log('[SyncService] Skipping addToQueue in browser environment');
+            return;
+        }
+
         try {
             await prisma.syncQueue.create({
                 data: {
@@ -34,6 +40,12 @@ export class SyncService {
      * Processes the pending items in the queue
      */
     static async processQueue() {
+        // Skip if running in browser
+        if (typeof window !== 'undefined') {
+            console.log('[SyncService] Skipping sync in browser environment');
+            return;
+        }
+
         if (this.isProcessing) return;
 
         const config = await prisma.systemConfig.findFirst({ where: { id: 'default' } });
@@ -109,6 +121,12 @@ export class SyncService {
                 endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/sync/order`;
             } else if (item.entity === 'Payment') {
                 endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/sync/payment`;
+            } else if (item.entity === 'Log') {
+                endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/sync/log`;
+            } else if (item.entity === 'SunatDocument') {
+                endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/sync/sunat-document`;
+            } else if (item.entity === 'Client') {
+                endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/sync/client`;
             } else {
                 console.warn(`[SyncService] Entity ${item.entity} not supported for sync yet`);
                 return true; // Mark as synced to avoid blocking the queue

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
+import { useConfig } from '@/contexts/config-context';
 import { PageHeader } from '@/components/page-header';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import StaffPerformanceRanking from './components/staff-performance';
@@ -12,6 +13,7 @@ export default function StaffPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { config } = useConfig();
 
   const fetchData = useCallback(async () => {
     try {
@@ -72,7 +74,7 @@ export default function StaffPage() {
       <Tabs defaultValue="users">
         <TabsList className="grid w-full grid-cols-3 md:w-[500px]">
           <TabsTrigger value="users">Cuentas</TabsTrigger>
-          <TabsTrigger value="masajistas">Masajistas</TabsTrigger>
+          <TabsTrigger value="masajistas">{config.masajistaRoleNamePlural}</TabsTrigger>
           <TabsTrigger value="ranking">Ranking</TabsTrigger>
         </TabsList>
         <TabsContent value="users">

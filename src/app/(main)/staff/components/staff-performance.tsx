@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Award } from 'lucide-react';
 import type { Order, User } from '@/lib/types';
 import { useMemo } from 'react';
+import { useConfig } from '@/contexts/config-context';
 
 type PerformanceData = {
   totalSales: number;
@@ -26,6 +27,7 @@ type PerformanceData = {
 };
 
 export default function StaffPerformanceRanking({ orders, users }: { orders: Order[]; users: User[] }) {
+  const { config } = useConfig();
 
   const rankedUsers = useMemo(() => {
     const salesByWaiter: Record<string, PerformanceData & { user: User }> = {};
@@ -134,7 +136,7 @@ export default function StaffPerformanceRanking({ orders, users }: { orders: Ord
                     <div className="grid gap-0.5">
                       <p className="font-medium">{user.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {user.role}
+                        {user.role === 'Masajista' ? config.masajistaRoleName : user.role}
                       </p>
                     </div>
                   </div>

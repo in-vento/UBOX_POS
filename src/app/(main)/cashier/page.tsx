@@ -12,7 +12,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { DollarSign, Printer, Search, User, WalletCards, CreditCard, Loader2, Save, Users as UsersIcon } from 'lucide-react';
+import { DollarSign, Printer, Search, User, WalletCards, CreditCard, Loader2, Save, Users as UsersIcon, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -44,6 +44,7 @@ import HandoverDialog from './components/handover-dialog';
 import { Switch } from '@/components/ui/switch';
 import { DigitInput } from '@/components/digit-input';
 import { KeypadInput } from '@/components/keypad-input';
+import { SunatEmissionDialog } from '@/components/sunat-emission-dialog';
 
 
 
@@ -339,8 +340,18 @@ const AttendanceDialog = ({
 };
 
 
-function BillingContent({ orders, onDataChange, allUsers, cashierName }: { orders: Order[], onDataChange: () => void, allUsers: UserType[], cashierName: string }) {
+function BillingContent({ orders, onDataChange, allUsers, cashierName, sunatEmissionDialogOpen, setSunatEmissionDialogOpen, orderForEmission, setOrderForEmission }: {
+    orders: Order[],
+    onDataChange: () => void,
+    allUsers: UserType[],
+    cashierName: string,
+    sunatEmissionDialogOpen: boolean,
+    setSunatEmissionDialogOpen: (open: boolean) => void,
+    orderForEmission: Order | null,
+    setOrderForEmission: (order: Order | null) => void
+}) {
     const searchParams = useSearchParams();
+
     // const cashierName = searchParams.get('name') || 'Cajero'; // Now passed as prop
 
     const [searchTerm, setSearchTerm] = useState('');
@@ -923,6 +934,17 @@ function BillingContent({ orders, onDataChange, allUsers, cashierName }: { order
                                     >
                                         <Printer className="mr-2 h-4 w-4" /> Imprimir Ticket
                                     </Button>
+
+                                    <Button
+                                        variant="default"
+                                        className="w-full"
+                                        onClick={() => {
+                                            setOrderForEmission(selectedOrder);
+                                            setSunatEmissionDialogOpen(true);
+                                        }}
+                                    >
+                                        <FileText className="mr-2 h-4 w-4" /> Emitir Comprobante Electrónico
+                                    </Button>
                                 </div>
                             )}
 
@@ -987,6 +1009,10 @@ export default function CashierPage() {
     const [allUsers, setAllUsers] = useState<UserType[]>([]);
     const [isLoadingOrders, setIsLoadingOrders] = useState(true);
     const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+
+    // SUNAT Emission Dialog State
+    const [sunatEmissionDialogOpen, setSunatEmissionDialogOpen] = useState(false);
+    const [orderForEmission, setOrderForEmission] = useState<Order | null>(null);
 
     const fetchOrders = async () => {
         try {
@@ -1303,7 +1329,16 @@ export default function CashierPage() {
                         <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
                     </TabsList>
                     <TabsContent value="billing" className="space-y-4">
-                        <BillingContent orders={orders || []} onDataChange={refreshAllData} allUsers={allUsers || []} cashierName={cashierInCharge.name || 'Caja'} />
+                        <BillingContent
+                            orders={orders || []}
+                            onDataChange={refreshAllData}
+                            allUsers={allUsers || []}
+                            cashierName={cashierInCharge.name || 'Caja'}
+                            sunatEmissionDialogOpen={sunatEmissionDialogOpen}
+                            setSunatEmissionDialogOpen={setSunatEmissionDialogOpen}
+                            orderForEmission={orderForEmission}
+                            setOrderForEmission={setOrderForEmission}
+                        />
                     </TabsContent>
                     <TabsContent value="dashboard">
                         <CashierDashboard currentOrders={orders || []} allUsers={allUsers || []} cashierInCharge={cashierInCharge} shiftStartTime={shiftStartTime} />
@@ -1330,6 +1365,18 @@ export default function CashierPage() {
                 pendingOrders={pendingOrdersForHandover}
                 onAccept={handleHandoverAccept}
                 onReport={handleHandoverReport}
+            />
+
+            {/* SUNAT Emission Dialog */}
+            <SunatEmissionDialog
+                isOpen={sunatEmissionDialogOpen}
+                onOpenChange={setSunatEmissionDialogOpen}
+                orderId={orderForEmission?.id || ''}
+                orderTotal={orderForEmission?.totalAmount || 0}
+                onSuccess={() => {
+                    onDataChange();
+                    setOrderForEmission(null);
+                }}
             />
         </>
     );

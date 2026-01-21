@@ -48,6 +48,16 @@ export async function POST() {
         await runQuery("ALTER TABLE MonitorConfig ADD COLUMN popupDuration INTEGER DEFAULT 3000");
         await runQuery("ALTER TABLE MonitorConfig ADD COLUMN soundEnabled BOOLEAN DEFAULT 1");
 
+        // Fix for v0.3.17: Add AppConfig table
+        await runQuery(`
+            CREATE TABLE IF NOT EXISTS "AppConfig" (
+                "id" TEXT NOT NULL PRIMARY KEY,
+                "masajistaRoleName" TEXT NOT NULL DEFAULT 'Masajista',
+                "masajistaRoleNamePlural" TEXT NOT NULL DEFAULT 'Masajistas',
+                "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
         return NextResponse.json({ success: true, message: 'Migration completed' });
     } catch (error: any) {
         console.error('Migration API failed:', error);

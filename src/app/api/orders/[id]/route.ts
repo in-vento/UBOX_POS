@@ -63,13 +63,21 @@ export async function PUT(
                 return `${i.quantity}x ${p?.name || 'Producto'}`;
             }).join(', ');
 
-            await prisma.log.create({
+            const log = await prisma.log.create({
                 data: {
                     action: 'ORDER_EDITED',
                     details: `Pedido ${currentOrder.customId || id.slice(-6)} editado por ${editedBy || 'Admin'}. Antes: [${oldItemsDesc}]. Ahora: [${newItemsDesc}]. Total: S/ ${calculatedTotal.toFixed(2)}`,
                     userId: userId || null
                 }
             });
+
+            // Sync the log
+            try {
+                const { SyncService } = await import('@/lib/sync-service');
+                await SyncService.addToQueue('Log', log.id, 'CREATE', log);
+            } catch (e) {
+                console.error('Failed to sync order edit log:', e);
+            }
         }
 
         // Update editedBy using raw SQL to bypass Prisma client limitations
@@ -199,13 +207,21 @@ export async function DELETE(
 
         if (orderToDelete) {
             const itemsDesc = orderToDelete.items.map(i => `${i.quantity}x ${i.product.name}`).join(', ');
-            await prisma.log.create({
+            const log = await prisma.log.create({
                 data: {
                     action: 'ORDER_DELETED',
                     details: `Pedido ${orderToDelete.customId || id.slice(-6)} anulado por ${body.adminName || 'Admin'}. Motivo: ${reason || 'No especificado'}. Contenía: [${itemsDesc}]. Total: S/ ${orderToDelete.totalAmount.toFixed(2)}`,
                     userId: userId || null
                 }
             });
+
+            // Sync the log
+            try {
+                const { SyncService } = await import('@/lib/sync-service');
+                await SyncService.addToQueue('Log', log.id, 'CREATE', log);
+            } catch (e) {
+                console.error('Failed to sync order delete log:', e);
+            }
 
             // Soft delete: update status to Cancelled
             await prisma.order.update({

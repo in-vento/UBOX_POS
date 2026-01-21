@@ -113,3 +113,59 @@ export type PaymentMethod = {
   method: 'Efectivo' | 'Yape / Plin' | 'Tarjeta';
   amount: number;
 }
+
+export type LicenseType = 'basic' | 'professional' | 'business';
+
+export type License = {
+  id: string;
+  key: string;
+  type: LicenseType;
+  businessId: string;
+  expiresAt: string;
+  isActive: boolean;
+  maxDevices: number;
+  currentDevices: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type Device = {
+  id: string;
+  name: string;
+  fingerprint: string;
+  businessId: string;
+  role: 'POS' | 'ADMIN' | 'MONITOR';
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+  updatedAt: string;
+  lastSeen?: string;
+  userAgent?: string;
+  ipAddress?: string;
+};
+
+export type LicenseRequest = {
+  id: string;
+  businessId: string;
+  planType: LicenseType;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  paymentStatus: 'pending' | 'paid' | 'failed';
+  licenseKey?: string;
+  createdAt: string;
+  updatedAt: string;
+  amount: number;
+  currency: string;
+};
+
+export type BusinessRegistration = {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  businessName: string;
+  ruc?: string;
+  address?: string;
+  status: 'registered' | 'pending_payment' | 'active' | 'inactive';
+  licenseStatus: 'none' | 'pending' | 'active' | 'expired';
+  createdAt: string;
+  updatedAt: string;
+};

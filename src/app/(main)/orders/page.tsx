@@ -233,13 +233,15 @@ export default function ProductsPage() {
     setIsDeleteDialogOpen(true);
   };
 
+  const showActions = isAdminOrBoss;
+
   return (
     <>
       <PageHeader
         title="Catálogo de Productos"
         description="Gestiona los productos y servicios de tu negocio."
       >
-        {isAdminOrBoss && (
+        {showActions && (
           <Button
             size="sm"
             className="h-8 gap-1"
@@ -276,7 +278,7 @@ export default function ProductsPage() {
                   </TableHead>
                   <TableHead className="text-center">Comisión</TableHead>
                   <TableHead className="text-right">Precio</TableHead>
-                  {isAdminOrBoss && (
+                  {showActions && (
                     <TableHead>
                       <span className="sr-only">Acciones</span>
                     </TableHead>
@@ -307,7 +309,7 @@ export default function ProductsPage() {
                         maximumFractionDigits: 2,
                       })}
                     </TableCell>
-                    {isAdminOrBoss && (
+                    {showActions && (
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

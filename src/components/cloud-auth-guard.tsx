@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -120,7 +120,7 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
             if (res.ok) {
                 setDeviceStatus({
                     isAuthorized: false,
-                    message: 'Dispositivo registrado correctamente. Esperando autorización del administrador.'
+                    message: '✅ Dispositivo registrado. Por favor, ve a https://tu-web.com/devices y autoriza este dispositivo.'
                 });
             }
         } catch (error) {
@@ -282,6 +282,30 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
                             </div>
                             <Button type="submit" className="w-full" disabled={isLoading}>
                                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Iniciar Sesión Cloud'}
+                            </Button>
+                            <div className="relative">
+                                <div className="absolute inset-0 flex items-center">
+                                    <span className="w-full border-t" />
+                                </div>
+                                <div className="relative flex justify-center text-xs uppercase">
+                                    <span className="bg-background px-2 text-muted-foreground">O accede localmente</span>
+                                </div>
+                            </div>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => {
+                                    setStep('authorized');
+                                    setIsAuthenticated(true);
+                                    toast({
+                                        title: "Modo Local Activado",
+                                        description: "Has ingresado sin sincronización cloud.",
+                                        variant: "default"
+                                    });
+                                }}
+                            >
+                                Continuar sin Nube (Modo Local)
                             </Button>
                         </form>
                     )}

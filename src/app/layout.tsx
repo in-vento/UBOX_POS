@@ -13,6 +13,7 @@ import CloudAuthGuard from '@/components/cloud-auth-guard';
 import SyncManager from '@/components/sync-manager';
 
 import { UpdateNotifier } from '@/components/update-notifier';
+import { ConfigProvider } from '@/contexts/config-context';
 
 export default function RootLayout({
   children,
@@ -34,14 +35,16 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <SyncManager />
-        <CloudAuthGuard>
-          <LicenseGuard>
-            {children}
-          </LicenseGuard>
-        </CloudAuthGuard>
-        <UpdateNotifier />
-        <Toaster />
+        <ConfigProvider>
+          <SyncManager />
+          <CloudAuthGuard>
+            <LicenseGuard>
+              {children}
+            </LicenseGuard>
+          </CloudAuthGuard>
+          <UpdateNotifier />
+          <Toaster />
+        </ConfigProvider>
       </body>
     </html>
   );

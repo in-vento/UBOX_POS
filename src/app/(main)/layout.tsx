@@ -19,6 +19,8 @@ import {
   User,
   Menu,
   Loader2,
+  Shield,
+  FileText,
 } from 'lucide-react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
@@ -40,6 +42,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { Logo } from '@/components/logo';
+import { NotificationProvider } from '@/contexts/notification-context';
+import { NotificationDropdown } from '@/components/notification-dropdown';
 import type { User as UserType } from '@/lib/types';
 import { useState, useMemo } from 'react';
 
@@ -50,6 +54,9 @@ const allNavItems = [
   { href: '/orders', icon: Package, label: 'Catálogo de productos', roles: ['admin', 'cajero', 'boss'] },
   { href: '/bar', icon: Beer, label: 'Inventario', roles: ['barman', 'admin'] },
   { href: '/staff', icon: Users, label: 'Personal', roles: ['admin', 'boss'] },
+  { href: '/sunat/documents', icon: FileText, label: 'Documentos SUNAT', roles: ['admin', 'boss'] },
+  { href: '/settings/sunat', icon: FileText, label: 'Configuración SUNAT', roles: ['admin', 'boss'] },
+  { href: '/devices', icon: Shield, label: 'Dispositivos', roles: ['admin', 'boss'] },
   { href: '/pricing', icon: CreditCard, label: 'Planes', roles: ['admin', 'boss'] },
   { href: '/logs', icon: Briefcase, label: 'Registros', roles: ['admin', 'boss'] },
 ];
@@ -189,60 +196,65 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
   if (role === 'mozo' || role === 'barman') {
     return (
-      <div className="flex flex-col h-screen overflow-hidden">
-        <header className="flex h-14 items-center justify-between gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
-          <Link href={getLinkWithParams(homeLink)} className="flex items-center gap-2 font-semibold">
-            <Logo />
-          </Link>
-          <div className="flex items-center gap-4">
-            <Button
-              variant="destructive"
-              className="font-bold gap-2 shadow-lg hover:scale-105 transition-transform"
-              asChild
-            >
-              <Link href={role === 'mozo' ? '/waiter-selection' : '/'}>
-                <LogOut className="h-5 w-5" />
-                SALIR
-              </Link>
-            </Button>
-            <UserAvatar />
-          </div>
-        </header>
-        <main className="flex flex-1 flex-col gap-2 p-2 lg:gap-4 lg:p-4 bg-background overflow-y-auto">
-          {children}
-        </main>
-      </div>
+      <NotificationProvider>
+        <div className="flex flex-col h-screen overflow-hidden">
+          <header className="flex h-14 items-center justify-between gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
+            <Link href={getLinkWithParams(homeLink)} className="flex items-center gap-2 font-semibold">
+              <Logo />
+            </Link>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="destructive"
+                className="font-bold gap-2 shadow-lg hover:scale-105 transition-transform"
+                asChild
+              >
+                <Link href={role === 'mozo' ? '/waiter-selection' : '/'}>
+                  <LogOut className="h-5 w-5" />
+                  SALIR
+                </Link>
+              </Button>
+              <UserAvatar />
+            </div>
+          </header>
+          <main className="flex flex-1 flex-col gap-2 p-2 lg:gap-4 lg:p-4 bg-background overflow-y-auto">
+            {children}
+          </main>
+        </div>
+      </NotificationProvider>
     );
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-muted/40">
-      <header className="sticky top-0 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-        <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-          <SheetTrigger asChild>
-            <Button size="icon" variant="outline" className="sm:hidden">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle Menu</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="flex flex-col sm:hidden">
+    <NotificationProvider>
+      <div className="flex min-h-screen w-full flex-col bg-muted/40">
+        <header className="sticky top-0 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
+          <Sheet open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+            <SheetTrigger asChild>
+              <Button size="icon" variant="outline" className="sm:hidden">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Toggle Menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="flex flex-col sm:hidden">
+              <NavigationMenu />
+            </SheetContent>
+          </Sheet>
+          <div className="w-full flex-1">
+          </div>
+          <div className="flex items-center gap-4">
+            {(role === 'admin' || role === 'boss') && <NotificationDropdown />}
+            <UserAvatar />
+          </div>
+        </header>
+        <div className="flex">
+          <aside className="hidden w-64 flex-col border-r bg-background sm:flex">
             <NavigationMenu />
-          </SheetContent>
-        </Sheet>
-        <div className="w-full flex-1">
+          </aside>
+          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-slate-50">
+            {children}
+          </main>
         </div>
-        <div className="flex items-center gap-4">
-          <UserAvatar />
-        </div>
-      </header>
-      <div className="flex">
-        <aside className="hidden w-64 flex-col border-r bg-background sm:flex">
-          <NavigationMenu />
-        </aside>
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-slate-50">
-          {children}
-        </main>
       </div>
-    </div>
+    </NotificationProvider>
   );
 }
