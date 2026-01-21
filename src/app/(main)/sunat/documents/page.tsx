@@ -30,7 +30,8 @@ import {
     CheckCircle2,
     XCircle,
     Clock,
-    Filter
+    Filter,
+    AlertCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
