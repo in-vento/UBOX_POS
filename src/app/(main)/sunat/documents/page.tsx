@@ -31,10 +31,11 @@ import {
     XCircle,
     Clock,
     Filter,
-    AlertCircle
+    AlertCircle,
+    Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { format } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 import {
     Select,
@@ -52,6 +53,12 @@ export default function SunatDocumentsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [typeFilter, setTypeFilter] = useState('ALL');
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        fetchDocuments();
+    }, []);
 
     const fetchDocuments = async () => {
         setLoading(true);
@@ -60,7 +67,7 @@ export default function SunatDocumentsPage() {
             const res = await fetch('/api/sunat/documents');
             if (res.ok) {
                 const data = await res.json();
-                setDocuments(data);
+                setDocuments(Array.isArray(data) ? data : []);
             } else {
                 const data = await res.json();
                 throw new Error(data.error || 'Error al cargar documentos');
@@ -78,16 +85,20 @@ export default function SunatDocumentsPage() {
         }
     };
 
-    useEffect(() => {
-        fetchDocuments();
-    }, []);
-
     const filteredDocuments = useMemo(() => {
+        if (!Array.isArray(documents)) return [];
+
         return documents.filter(doc => {
+            if (!doc) return false;
+
+            const fullNumber = doc.fullNumber || '';
+            const razonSocial = doc.client?.razonSocial || '';
+            const numDoc = doc.client?.numDoc || '';
+
             const matchesSearch =
-                doc.fullNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                doc.client?.razonSocial?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                doc.client?.numDoc?.includes(searchTerm);
+                fullNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                razonSocial.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                numDoc.includes(searchTerm);
 
             const matchesStatus = statusFilter === 'ALL' || doc.status === statusFilter;
             const matchesType = typeFilter === 'ALL' || doc.documentType === typeFilter;
@@ -97,6 +108,8 @@ export default function SunatDocumentsPage() {
     }, [documents, searchTerm, statusFilter, typeFilter]);
 
     const getStatusBadge = (status: string) => {
+        if (!status) return <Badge variant="outline">N/A</Badge>;
+
         switch (status) {
             case 'ACEPTADO':
                 return <Badge className="bg-green-500"><CheckCircle2 className="mr-1 h-3 w-3" /> Aceptado</Badge>;
@@ -110,6 +123,7 @@ export default function SunatDocumentsPage() {
     };
 
     const handlePrint = async (docId: string) => {
+        if (!docId) return;
         try {
             const res = await fetch('/api/print/electronic', {
                 method: 'POST',
@@ -134,13 +148,34 @@ export default function SunatDocumentsPage() {
         }
     };
 
+    const formatDateSafely = (dateStr: string) => {
+        if (!dateStr) return 'Fecha no disponible';
+        try {
+            const date = parseISO(dateStr);
+            if (isValid(date)) {
+                return format(date, 'dd/MM/yyyy HH:mm', { locale: es });
+            }
+            return 'Fecha inválida';
+        } catch (e) {
+            return 'Error de fecha';
+        }
+    };
+
+    const formatCurrencySafely = (amount: any) => {
+        const num = parseFloat(amount);
+        if (isNaN(num)) return 'S/ 0.00';
+        return `S/ ${num.toFixed(2)}`;
+    };
+
+    if (!mounted) return null;
+
     return (
         <div className="flex flex-col gap-6">
             <PageHeader
                 title="Documentos SUNAT"
                 description="Listado de comprobantes electrónicos emitidos"
             >
-                <Button onClick={fetchDocuments} variant="outline" size="sm">
+                <Button onClick={fetchDocuments} variant="outline" size="sm" disabled={loading}>
                     <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                     Actualizar
                 </Button>
@@ -226,19 +261,19 @@ export default function SunatDocumentsPage() {
                                 filteredDocuments.map((doc) => (
                                     <TableRow key={doc.id}>
                                         <TableCell>
-                                            {format(new Date(doc.fechaEmision), 'dd/MM/yyyy HH:mm', { locale: es })}
+                                            {formatDateSafely(doc.fechaEmision)}
                                         </TableCell>
                                         <TableCell className="font-mono font-medium">
-                                            {doc.fullNumber}
+                                            {doc.fullNumber || 'S/N'}
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col">
-                                                <span className="font-medium">{doc.client?.razonSocial}</span>
-                                                <span className="text-xs text-muted-foreground">{doc.client?.numDoc}</span>
+                                                <span className="font-medium">{doc.client?.razonSocial || 'Cliente Desconocido'}</span>
+                                                <span className="text-xs text-muted-foreground">{doc.client?.numDoc || '-'}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="font-bold">
-                                            S/ {doc.total.toFixed(2)}
+                                            {formatCurrencySafely(doc.total)}
                                         </TableCell>
                                         <TableCell>
                                             {getStatusBadge(doc.status)}
@@ -250,6 +285,7 @@ export default function SunatDocumentsPage() {
                                                     size="icon"
                                                     title="Imprimir"
                                                     onClick={() => handlePrint(doc.id)}
+                                                    disabled={!doc.id}
                                                 >
                                                     <Printer className="h-4 w-4" />
                                                 </Button>
