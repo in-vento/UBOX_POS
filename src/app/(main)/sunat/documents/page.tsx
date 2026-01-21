@@ -47,22 +47,26 @@ export default function SunatDocumentsPage() {
     const { toast } = useToast();
     const [documents, setDocuments] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('ALL');
     const [typeFilter, setTypeFilter] = useState('ALL');
 
     const fetchDocuments = async () => {
         setLoading(true);
+        setError(null);
         try {
             const res = await fetch('/api/sunat/documents');
             if (res.ok) {
                 const data = await res.json();
                 setDocuments(data);
             } else {
-                throw new Error('Error al cargar documentos');
+                const data = await res.json();
+                throw new Error(data.error || 'Error al cargar documentos');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching documents:', error);
+            setError(error.message);
             toast({
                 title: 'Error',
                 description: 'No se pudieron cargar los documentos SUNAT',
@@ -195,13 +199,25 @@ export default function SunatDocumentsPage() {
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                                        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
                                         Cargando documentos...
+                                    </TableCell>
+                                </TableRow>
+                            ) : error ? (
+                                <TableRow>
+                                    <TableCell colSpan={6} className="text-center py-12 text-destructive">
+                                        <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                                        <p className="font-semibold">Error al cargar documentos</p>
+                                        <p className="text-sm opacity-80 mb-4">{error}</p>
+                                        <Button onClick={fetchDocuments} variant="outline" size="sm">
+                                            Reintentar
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ) : filteredDocuments.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                                         No se encontraron documentos
                                     </TableCell>
                                 </TableRow>

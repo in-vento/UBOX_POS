@@ -39,6 +39,7 @@ export default function SunatSettingsPage() {
     const { toast } = useToast();
     const [config, setConfig] = useState<SunatConfig | null>(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
 
@@ -47,17 +48,23 @@ export default function SunatSettingsPage() {
     }, []);
 
     const fetchConfig = async () => {
+        setLoading(true);
+        setError(null);
         try {
             const res = await fetch('/api/sunat/config');
             if (res.ok) {
                 const data = await res.json();
                 setConfig(data);
+            } else {
+                const data = await res.json();
+                throw new Error(data.error || 'Error al cargar configuración');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching config:', error);
+            setError(error.message);
             toast({
                 title: 'Error',
-                description: 'No se pudo cargar la configuración',
+                description: 'No se pudo cargar la configuración de SUNAT',
                 variant: 'destructive'
             });
         } finally {
@@ -130,13 +137,27 @@ export default function SunatSettingsPage() {
 
     if (loading) {
         return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="h-8 w-8 animate-spin" />
+            <div className="flex flex-col items-center justify-center h-64 gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-muted-foreground">Cargando configuración de SUNAT...</p>
             </div>
         );
     }
 
-    if (!config) return null;
+    if (error || !config) {
+        return (
+            <div className="flex flex-col items-center justify-center h-64 gap-4">
+                <AlertCircle className="h-12 w-12 text-destructive" />
+                <div className="text-center">
+                    <h3 className="text-lg font-semibold">Error al cargar configuración</h3>
+                    <p className="text-muted-foreground">{error || 'No se encontró la configuración'}</p>
+                </div>
+                <Button onClick={fetchConfig} variant="outline">
+                    Reintentar
+                </Button>
+            </div>
+        );
+    }
 
     return (
         <>
