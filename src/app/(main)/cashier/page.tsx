@@ -1374,7 +1374,7 @@ export default function CashierPage() {
                 orderId={orderForEmission?.id || ''}
                 orderTotal={orderForEmission?.totalAmount || 0}
                 onSuccess={() => {
-                    onDataChange();
+                    refreshAllData();
                     setOrderForEmission(null);
                 }}
             />
