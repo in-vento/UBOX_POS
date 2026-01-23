@@ -127,6 +127,8 @@ export class SyncService {
                 endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/sync/sunat-document`;
             } else if (item.entity === 'Client') {
                 endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/sync/client`;
+            } else if (item.entity === 'User') {
+                endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/staff/sync`;
             } else {
                 console.warn(`[SyncService] Entity ${item.entity} not supported for sync yet`);
                 return true; // Mark as synced to avoid blocking the queue

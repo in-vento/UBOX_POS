@@ -77,6 +77,14 @@ export async function POST(request: Request) {
             },
         });
 
+        // Add to sync queue
+        try {
+            const { SyncService } = await import('@/lib/sync-service');
+            await SyncService.addToQueue('User', user.id, 'CREATE', user);
+        } catch (e) {
+            console.error('Failed to add user to sync queue:', e);
+        }
+
         return NextResponse.json(user);
     } catch (error) {
         console.error('Error creating user:', error);
