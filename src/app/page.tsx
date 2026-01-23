@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -24,21 +23,18 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ArrowRight, Beer, LayoutGrid, Users, Monitor, Briefcase, Loader2 } from 'lucide-react';
+import { ArrowRight, Beer, Monitor, Briefcase, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { User } from '@/lib/types';
+import { PinDialog } from '@/components/auth/pin-dialog';
 
 export default function LoginPage() {
   const loginImage = PlaceHolderImages.find((img) => img.id === 'login-bg');
-  const [isPinDialogOpen, setIsPinDialogOpen] = useState(false);
+
+  // Dialog States
   const [isCashierPinDialogOpen, setIsCashierPinDialogOpen] = useState(false);
   const [isBarmanPinDialogOpen, setIsBarmanPinDialogOpen] = useState(false);
   const [isMgmtPinDialogOpen, setIsMgmtPinDialogOpen] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [pin, setPin] = useState('');
-  const [pinError, setPinError] = useState<string | null>(null);
 
   // Management Login State
   const [mgmtUserId, setMgmtUserId] = useState<string | null>(null);
@@ -87,7 +83,6 @@ export default function LoginPage() {
     }
   }, [managementUsers, mgmtUserId]);
 
-
   const handleProfileClick = (e: React.MouseEvent, profile: { href: string; action?: (e: React.MouseEvent) => void }) => {
     e.preventDefault();
     if (profile.action) {
@@ -97,15 +92,6 @@ export default function LoginPage() {
     }
   };
 
-  // Auto-submit when PIN is 4 digits
-  useEffect(() => {
-    if (pin.length === 4) {
-      if (isPinDialogOpen) handlePinSubmit('mozo', activeWaiters, setIsPinDialogOpen);
-      if (isCashierPinDialogOpen) handlePinSubmit('cajero', activeCashiers, setIsCashierPinDialogOpen);
-      if (isBarmanPinDialogOpen) handlePinSubmit('barman', activeBarmen, setIsBarmanPinDialogOpen);
-    }
-  }, [pin]);
-
   // Management PIN auto-submit
   useEffect(() => {
     if (mgmtPin.length === 4) {
@@ -113,64 +99,9 @@ export default function LoginPage() {
     }
   }, [mgmtPin]);
 
-  const handlePinSubmit = async (role: string, activeUsers: User[], setIsDialogOpen: (open: boolean) => void) => {
-    if (!selectedUserId) {
-      setPinError("Por favor, selecciona tu nombre.");
-      return;
-    }
-    const user = (activeUsers || []).find(u => u.id === selectedUserId);
-
-    if (!user) return;
-
-    if (user.isLocked) {
-      setPinError("Cuenta bloqueada. Contacte al administrador.");
-      setPin('');
-      return;
-    }
-
-    if (user.pin === pin) {
-      // Success
-      setPinError(null);
-      setIsDialogOpen(false);
-
-      // Reset failed attempts asynchronously
-      try {
-        await fetch(`/api/users/${user.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ failedLoginAttempts: 0 })
-        });
-      } catch (e) { console.error(e); }
-
-      const targetPath = role === 'mozo' ? '/waiter' : role === 'cajero' ? '/cashier' : '/bar';
-      router.push(`${targetPath}?role=${role}&name=${encodeURIComponent(user.name)}&id=${user.id}`);
-    } else {
-      // Failure
-      const newAttempts = (user.failedLoginAttempts || 0) + 1;
-      const isNowLocked = newAttempts >= 3;
-
-      try {
-        await fetch(`/api/users/${user.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            failedLoginAttempts: newAttempts,
-            isLocked: isNowLocked
-          })
-        });
-
-        // Update local state to reflect change immediately
-        setUsers(prev => prev.map(u => u.id === user.id ? { ...u, failedLoginAttempts: newAttempts, isLocked: isNowLocked } : u));
-
-      } catch (e) { console.error(e); }
-
-      if (isNowLocked) {
-        setPinError("Cuenta bloqueada por múltiples intentos fallidos. Contacte al administrador.");
-      } else {
-        setPinError("PIN incorrecto. Inténtalo de nuevo.");
-      }
-      setPin('');
-    }
+  const handleUserLoginSuccess = (user: User, role: string) => {
+    const targetPath = role === 'mozo' ? '/waiter' : role === 'cajero' ? '/cashier' : '/bar';
+    router.push(`${targetPath}?role=${role}&name=${encodeURIComponent(user.name)}&id=${user.id}`);
   };
 
   const handleMgmtLogin = async () => {
@@ -223,20 +154,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleCashierLoginClick = (e: React.MouseEvent) => {
-    setPinError(null);
-    setPin('');
-    setSelectedUserId(null);
-    setIsCashierPinDialogOpen(true);
-  };
-
-  const handleBarmanLoginClick = (e: React.MouseEvent) => {
-    setPinError(null);
-    setPin('');
-    setSelectedUserId(null);
-    setIsBarmanPinDialogOpen(true);
-  };
-
   const openMonitor = (num: number) => {
     window.open('/waiter-selection', `Monitor${num}`, 'width=1024,height=768');
   };
@@ -247,14 +164,14 @@ export default function LoginPage() {
       icon: Monitor,
       label: 'Cajero',
       description: 'Acceso a la caja y transacciones.',
-      action: handleCashierLoginClick,
+      action: () => setIsCashierPinDialogOpen(true),
     },
     {
       href: '/bar?role=barman',
       icon: Beer,
       label: 'Barman',
       description: 'Gestionar pedidos de bebidas.',
-      action: handleBarmanLoginClick,
+      action: () => setIsBarmanPinDialogOpen(true),
     },
   ];
 
@@ -388,8 +305,6 @@ export default function LoginPage() {
                   />
                 </div>
 
-
-
                 {mgmtError && <p className="text-[10px] text-destructive text-center">{mgmtError}</p>}
                 <Button
                   onClick={handleMgmtLogin}
@@ -431,139 +346,27 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Cashier PIN Dialog */}
-      <Dialog open={isCashierPinDialogOpen} onOpenChange={setIsCashierPinDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Acceso de Cajero</DialogTitle>
-            <DialogDescription>
-              Selecciona tu nombre e ingresa tu PIN de 4 dígitos para continuar.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="cashier-select">Nombre del Cajero</Label>
-              <Select onValueChange={setSelectedUserId} defaultValue={selectedUserId || ""}>
-                <SelectTrigger id="cashier-select">
-                  <SelectValue placeholder="Selecciona tu nombre" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(activeCashiers || []).map(cashier => (
-                    <SelectItem key={cashier.id} value={cashier.id}>
-                      <span>{cashier.name}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="pin-cashier">PIN de Seguridad</Label>
-              <Input
-                id="pin-cashier"
-                type="password"
-                maxLength={4}
-                value={pin}
-                autoComplete="off"
-                onChange={(e) => setPin(e.target.value)}
-                className="text-center text-2xl tracking-[1rem] h-12"
-                placeholder="****"
-              />
-            </div>
+      {/* Reusable PIN Dialogs */}
+      <PinDialog
+        isOpen={isCashierPinDialogOpen}
+        onOpenChange={setIsCashierPinDialogOpen}
+        title="Acceso de Cajero"
+        description="Selecciona tu nombre e ingresa tu PIN de 4 dígitos para continuar."
+        users={activeCashiers}
+        label="Nombre del Cajero"
+        onSuccess={(user) => handleUserLoginSuccess(user, 'cajero')}
+      />
 
-            {/* Numeric Keypad for Cashier PIN */}
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                <Button
-                  key={num}
-                  variant="outline"
-                  className="h-12 text-lg font-semibold"
-                  onClick={() => pin.length < 4 && setPin(prev => prev + num)}
-                >
-                  {num}
-                </Button>
-              ))}
-              <Button variant="outline" className="h-12 text-lg font-semibold" onClick={() => setPin('')}>C</Button>
-              <Button variant="outline" className="h-12 text-lg font-semibold" onClick={() => pin.length < 4 && setPin(prev => prev + '0')}>0</Button>
-              <Button variant="outline" className="h-12 text-lg font-semibold" onClick={() => setPin(prev => prev.slice(0, -1))}>⌫</Button>
-            </div>
-            {pinError && (
-              <Alert variant="destructive">
-                <AlertDescription>{pinError}</AlertDescription>
-              </Alert>
-            )}
-          </div>
-          <DialogFooter>
-            <Button type="submit" className="w-full" onClick={() => handlePinSubmit('cajero', activeCashiers, setIsCashierPinDialogOpen)}>Ingresar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PinDialog
+        isOpen={isBarmanPinDialogOpen}
+        onOpenChange={setIsBarmanPinDialogOpen}
+        title="Acceso de Barman"
+        description="Selecciona tu nombre e ingresa tu PIN de 4 dígitos para continuar."
+        users={activeBarmen}
+        label="Nombre del Barman"
+        onSuccess={(user) => handleUserLoginSuccess(user, 'barman')}
+      />
 
-      {/* Barman PIN Dialog */}
-      <Dialog open={isBarmanPinDialogOpen} onOpenChange={setIsBarmanPinDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Acceso de Barman</DialogTitle>
-            <DialogDescription>
-              Selecciona tu nombre e ingresa tu PIN de 4 dígitos para continuar.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="barman-select">Nombre del Barman</Label>
-              <Select onValueChange={setSelectedUserId} defaultValue={selectedUserId || ""}>
-                <SelectTrigger id="barman-select">
-                  <SelectValue placeholder="Selecciona tu nombre" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(activeBarmen || []).map(barman => (
-                    <SelectItem key={barman.id} value={barman.id}>
-                      <span>{barman.name}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="pin-barman">PIN de Seguridad</Label>
-              <Input
-                id="pin-barman"
-                type="password"
-                maxLength={4}
-                value={pin}
-                autoComplete="off"
-                onChange={(e) => setPin(e.target.value)}
-                className="text-center text-2xl tracking-[1rem] h-12"
-                placeholder="****"
-              />
-            </div>
-
-            {/* Numeric Keypad for Barman PIN */}
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-                <Button
-                  key={num}
-                  variant="outline"
-                  className="h-12 text-lg font-semibold"
-                  onClick={() => pin.length < 4 && setPin(prev => prev + num)}
-                >
-                  {num}
-                </Button>
-              ))}
-              <Button variant="outline" className="h-12 text-lg font-semibold" onClick={() => setPin('')}>C</Button>
-              <Button variant="outline" className="h-12 text-lg font-semibold" onClick={() => pin.length < 4 && setPin(prev => prev + '0')}>0</Button>
-              <Button variant="outline" className="h-12 text-lg font-semibold" onClick={() => setPin(prev => prev.slice(0, -1))}>⌫</Button>
-            </div>
-            {pinError && (
-              <Alert variant="destructive">
-                <AlertDescription>{pinError}</AlertDescription>
-              </Alert>
-            )}
-          </div>
-          <DialogFooter>
-            <Button type="submit" className="w-full" onClick={() => handlePinSubmit('barman', activeBarmen, setIsBarmanPinDialogOpen)}>Ingresar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       {/* Management PIN Dialog */}
       <Dialog open={isMgmtPinDialogOpen} onOpenChange={setIsMgmtPinDialogOpen}>
         <DialogContent className="sm:max-w-[350px]">
