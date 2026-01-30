@@ -7,16 +7,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Logo } from '@/components/logo';
-import { Loader2, Building, User, Mail, Phone, MapPin, FileText } from 'lucide-react';
+import { Loader2, Building, User, Mail, Phone, MapPin, FileText, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { API_BASE_URL } from '@/lib/api-config';
 
 export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    password: '',
     phone: '',
     businessName: '',
     ruc: '',
@@ -32,12 +35,40 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/register', {
+      // 1. Sign up with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name,
+            business_name: formData.businessName,
+          }
+        }
+      });
+
+      if (authError) throw authError;
+
+      if (!authData.session) {
+        toast({
+          title: "Verifica tu correo",
+          description: "Te hemos enviado un enlace de confirmación.",
+        });
+        return;
+      }
+
+      // 2. Onboard with Backend
+      const response = await fetch(`${API_BASE_URL}/api/auth/onboard`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          supabaseToken: authData.session.access_token,
+          email: formData.email,
+          name: formData.name,
+          businessName: formData.businessName,
+        }),
       });
 
       const result = await response.json();
@@ -45,25 +76,30 @@ export default function RegisterPage() {
       if (response.ok) {
         toast({
           title: "Registro Exitoso",
-          description: "Tu cuenta ha sido creada. Ahora elige un plan para activar tu negocio.",
+          description: "Tu cuenta ha sido creada correctamente.",
         });
-        
-        // Store registration data for plan selection
-        localStorage.setItem('registration_data', JSON.stringify(result.data));
-        
-        // Redirect to plans page
+
+        // Store auth data
+        localStorage.setItem('auth_token', result.data.token);
+        localStorage.setItem('user_info', JSON.stringify(result.data.user));
+
+        // Store registration context for plans page
+        localStorage.setItem('registration_data', JSON.stringify({
+          id: result.data.user.id,
+          name: formData.name,
+          email: formData.email,
+          businessName: formData.businessName
+        }));
+
+        // Redirect to plans
         router.push('/plans');
       } else {
-        toast({
-          title: "Error de Registro",
-          description: result.error?.message || "No se pudo completar el registro.",
-          variant: "destructive"
-        });
+        throw new Error(result.error?.message || "Error al registrar en el servidor");
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: "Error de Conexión",
-        description: "No se pudo conectar con el servidor.",
+        title: "Error de Registro",
+        description: error.message || "No se pudo completar el registro.",
         variant: "destructive"
       });
     } finally {
@@ -118,6 +154,22 @@ export default function RegisterPage() {
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Contraseña
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  required
+                  minLength={6}
                 />
               </div>
 

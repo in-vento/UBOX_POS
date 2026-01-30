@@ -10,6 +10,8 @@ import { Loader2, LogIn, UserPlus, Shield, Building } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { API_BASE_URL } from '@/lib/api-config';
 
 export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
@@ -26,12 +28,26 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/login', {
+      // 1. Sign in with Supabase
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (authError) throw authError;
+
+      if (!authData.session) throw new Error("No session created");
+
+      // 2. Onboard/Sync with Backend
+      const response = await fetch(`${API_BASE_URL}/api/auth/onboard`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          supabaseToken: authData.session.access_token,
+          email: formData.email,
+        }),
       });
 
       const result = await response.json();
@@ -46,23 +62,37 @@ export default function LoginPage() {
         localStorage.setItem('auth_token', result.data.token);
         localStorage.setItem('user_info', JSON.stringify(result.data.user));
 
-        // Redirect to dashboard
-        router.push('/dashboard?role=admin&name=' + encodeURIComponent(result.data.user.name));
+        // Check for data recovery / business selection
+        router.push('/select-business');
       } else {
-        toast({
-          title: "Error de Inicio de Sesión",
-          description: result.error?.message || "Credenciales inválidas.",
-          variant: "destructive"
-        });
+        throw new Error(result.error?.message || "Error en el servidor");
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
-        title: "Error de Conexión",
-        description: "No se pudo conectar con el servidor.",
+        title: "Error de Inicio de Sesión",
+        description: error.message || "Credenciales inválidas.",
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`, // Need to create this callback page
+        }
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      toast({
+        title: "Error de Google",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   };
 
@@ -101,7 +131,12 @@ export default function LoginPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="password">Contraseña</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Contraseña</Label>
+                  <Link href="/forgot-password" className="text-xs text-primary hover:underline">
+                    ¿Olvidaste tu contraseña?
+                  </Link>
+                </div>
                 <Input
                   id="password"
                   type="password"
@@ -123,6 +158,24 @@ export default function LoginPage() {
                 ) : (
                   'Iniciar Sesión'
                 )}
+              </Button>
+
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">
+                    O continúa con
+                  </span>
+                </div>
+              </div>
+
+              <Button variant="outline" type="button" className="w-full" onClick={handleGoogleLogin}>
+                <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
+                  <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>
+                </svg>
+                Google
               </Button>
 
               <div className="text-center text-sm text-muted-foreground">

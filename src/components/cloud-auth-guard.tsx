@@ -7,9 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Logo } from '@/components/logo';
 import { Loader2, Cloud, Building, AlertCircle } from 'lucide-react';
-import { API_ENDPOINTS } from '@/lib/api-config';
+import { API_ENDPOINTS, API_BASE_URL } from '@/lib/api-config';
 import { getHWID } from '@/lib/license';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/lib/supabase';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
 
 interface Business {
     id: string;
@@ -17,7 +20,10 @@ interface Business {
     slug: string;
 }
 
+const PUBLIC_ROUTES = ['/register', '/forgot-password', '/auth/callback', '/login', '/plans', '/select-business'];
+
 export default function CloudAuthGuard({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -35,7 +41,7 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
 
     useEffect(() => {
         const checkAuth = async () => {
-            const token = localStorage.getItem('cloud_token');
+            const token = localStorage.getItem('auth_token');
             const businessId = localStorage.getItem('business_id');
 
             if (token && businessId) {
@@ -128,47 +134,7 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
         }
     };
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
 
-        try {
-            const res = await fetch(API_ENDPOINTS.AUTH.LOGIN, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
-            });
-
-            const result = await res.json();
-
-            if (res.ok) {
-                localStorage.setItem('cloud_token', result.data.token);
-                localStorage.setItem('user_info', JSON.stringify(result.data.user));
-                setIsAuthenticated(true);
-
-                const userBusinesses = result.data.user.businesses.map((b: any) => b.business);
-                setBusinesses(userBusinesses);
-
-                if (userBusinesses.length === 1) {
-                    handleBusinessSelect(userBusinesses[0].id);
-                } else {
-                    setStep('business');
-                }
-
-                toast({ title: "Sesión Iniciada", description: "Bienvenido al sistema cloud." });
-            } else {
-                toast({
-                    title: "Error de Autenticación",
-                    description: result.error?.message || "Credenciales inválidas",
-                    variant: "destructive"
-                });
-            }
-        } catch (error) {
-            toast({ title: "Error de Conexión", description: "No se pudo conectar con el servidor cloud.", variant: "destructive" });
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     const handleBusinessSelect = async (id: string) => {
         localStorage.setItem('business_id', id);
@@ -228,12 +194,30 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('cloud_token');
+        localStorage.removeItem('auth_token');
         localStorage.removeItem('business_id');
         localStorage.removeItem('user_info');
         setIsAuthenticated(false);
         setStep('login');
     };
+
+    useEffect(() => {
+        if (isAuthenticated === false && !PUBLIC_ROUTES.includes(pathname)) {
+            window.location.href = '/login';
+        }
+    }, [isAuthenticated, pathname]);
+
+    if (PUBLIC_ROUTES.includes(pathname)) {
+        return <>{children}</>;
+    }
+
+    if (isAuthenticated === null) {
+        return (
+            <div className="flex h-screen items-center justify-center bg-muted/30">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            </div>
+        );
+    }
 
     if (step === 'authorized') {
         return <>{children}</>;
@@ -249,7 +233,6 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
                         Ubox Cloud Sync
                     </CardTitle>
                     <CardDescription>
-                        {step === 'login' && 'Inicia sesión con tu cuenta de negocio para activar el POS.'}
                         {step === 'business' && 'Selecciona el negocio al que pertenece este dispositivo.'}
                         {step === 'device-check' && 'Verificando autorización del dispositivo...'}
                         {step === 'license-check' && 'Validando suscripción y licencia...'}
@@ -257,59 +240,6 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                    {step === 'login' && (
-                        <form onSubmit={handleLogin} className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Correo Electrónico</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    placeholder="admin@tu-negocio.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="password">Contraseña</Label>
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                />
-                            </div>
-                            <Button type="submit" className="w-full" disabled={isLoading}>
-                                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Iniciar Sesión Cloud'}
-                            </Button>
-                            <div className="relative">
-                                <div className="absolute inset-0 flex items-center">
-                                    <span className="w-full border-t" />
-                                </div>
-                                <div className="relative flex justify-center text-xs uppercase">
-                                    <span className="bg-background px-2 text-muted-foreground">O accede localmente</span>
-                                </div>
-                            </div>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full"
-                                onClick={() => {
-                                    setStep('authorized');
-                                    setIsAuthenticated(true);
-                                    toast({
-                                        title: "Modo Local Activado",
-                                        description: "Has ingresado sin sincronización cloud.",
-                                        variant: "default"
-                                    });
-                                }}
-                            >
-                                Continuar sin Nube (Modo Local)
-                            </Button>
-                        </form>
-                    )}
-
                     {step === 'business' && (
                         <div className="grid gap-2">
                             {businesses.map((b) => (

@@ -18,7 +18,7 @@ export class LicenseService {
    */
   static async verifyCloudLicense(): Promise<LicenseStatus> {
     const businessId = localStorage.getItem('business_id');
-    const token = localStorage.getItem('cloud_token');
+    const token = localStorage.getItem('auth_token');
 
     if (!businessId || !token) {
       return { success: false, status: 'ERROR', message: 'No se encontró información de negocio o sesión.' };
@@ -56,7 +56,7 @@ export class LicenseService {
       }
     } catch (error) {
       console.error('[LicenseService] Verification failed:', error);
-      
+
       // Try to use cached license if offline
       return this.checkCachedLicense();
     }
@@ -121,7 +121,7 @@ export class LicenseService {
   }> {
     try {
       const businessId = localStorage.getItem('business_id');
-      const token = localStorage.getItem('cloud_token');
+      const token = localStorage.getItem('auth_token');
 
       const response = await fetch('/api/licenses/generate', {
         method: 'POST',

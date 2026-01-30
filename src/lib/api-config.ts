@@ -1,4 +1,4 @@
-﻿export const API_BASE_URL = 'https://web-production-1e51d.up.railway.app';
+﻿export const API_BASE_URL = 'http://localhost:3001';
 
 export const API_ENDPOINTS = {
   AUTH: {

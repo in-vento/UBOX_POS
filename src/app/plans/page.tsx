@@ -10,6 +10,7 @@ import { pricingPlans } from '@/lib/data';
 import { LicenseType } from '@/lib/types';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { API_BASE_URL } from '@/lib/api-config';
 
 const planFeatures = {
   basic: {
@@ -60,16 +61,16 @@ export default function PlansPage() {
     setIsProcessing(true);
 
     try {
-      const response = await fetch('/api/licenses/generate', {
+      const response = await fetch(`${API_BASE_URL}/api/license/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}` // Add auth token
         },
         body: JSON.stringify({
           businessId: registrationData?.id,
           planType,
-          businessName: registrationData?.businessName,
-          email: registrationData?.email
+          // businessName and email are not needed by backend but kept if useful
         }),
       });
 
@@ -106,7 +107,7 @@ export default function PlansPage() {
       title: "Descarga Iniciada",
       description: "El instalador de Ubox POS Desktop se está descargando.",
     });
-    
+
     // Simulate download after a short delay
     setTimeout(() => {
       const link = document.createElement('a');
@@ -218,9 +219,8 @@ export default function PlansPage() {
           return (
             <Card
               key={plan.name}
-              className={`relative flex flex-col ${planConfig.borderColor} ${
-                planConfig.popular ? 'ring-2 ring-primary scale-105' : ''
-              }`}
+              className={`relative flex flex-col ${planConfig.borderColor} ${planConfig.popular ? 'ring-2 ring-primary scale-105' : ''
+                }`}
             >
               {planConfig.popular && (
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
@@ -229,7 +229,7 @@ export default function PlansPage() {
                   </div>
                 </div>
               )}
-              
+
               <CardHeader className={`text-center pb-4 ${planConfig.bgColor}`}>
                 <div className={`mx-auto w-12 h-12 ${planConfig.bgColor} rounded-full flex items-center justify-center mb-4`}>
                   <Icon className={`h-6 w-6 ${planConfig.color}`} />
