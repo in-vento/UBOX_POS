@@ -44,6 +44,14 @@ export async function PUT(
             }
         });
 
+        // Add to sync queue
+        try {
+            const { SyncService } = await import('@/lib/sync-service');
+            await SyncService.addToQueue('Product', id, 'UPDATE', product);
+        } catch (e) {
+            console.error('Failed to add product update to sync queue:', e);
+        }
+
         return NextResponse.json(product);
     } catch (error) {
         console.error('Error updating product:', error);
@@ -73,6 +81,14 @@ export async function DELETE(
         await prisma.product.delete({
             where: { id },
         });
+        // Add to sync queue
+        try {
+            const { SyncService } = await import('@/lib/sync-service');
+            await SyncService.addToQueue('Product', id, 'DELETE', { id });
+        } catch (e) {
+            console.error('Failed to add product deletion to sync queue:', e);
+        }
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error('Error deleting product:', error);

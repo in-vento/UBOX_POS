@@ -50,6 +50,14 @@ export async function POST(request: Request) {
             }
         });
 
+        // Add to sync queue
+        try {
+            const { SyncService } = await import('@/lib/sync-service');
+            await SyncService.addToQueue('Product', product.id, 'CREATE', product);
+        } catch (e) {
+            console.error('Failed to add product to sync queue:', e);
+        }
+
         return NextResponse.json(product);
     } catch (error) {
         console.error('Error creating product:', error);

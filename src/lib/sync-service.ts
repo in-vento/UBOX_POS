@@ -125,8 +125,8 @@ export class SyncService {
                 endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/sync/log`;
             } else if (item.entity === 'SunatDocument') {
                 endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/sync/sunat-document`;
-            } else if (item.entity === 'Client') {
-                endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/sync/client`;
+            } else if (item.entity === 'Product') {
+                endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/sync/product`;
             } else if (item.entity === 'User') {
                 endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/staff/sync`;
             } else {
