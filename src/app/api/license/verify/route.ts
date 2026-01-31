@@ -1,25 +1,31 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 
-export async function POST(req: Request) {
+export async function GET() {
     try {
-        const { key, hwid } = await req.json();
+        // Next.js 15 requires awaiting headers()
+        const headersList = await headers();
+        const businessId = headersList.get('x-business-id');
+        const fingerprint = headersList.get('x-device-fingerprint');
 
-        // MOCK VERIFICATION LOGIC
-        // In production, this should call your central licensing server
-        if (key.startsWith('UBOX-') && key.length > 10) {
-            const expiresAt = new Date();
-            expiresAt.setFullYear(expiresAt.getFullYear() + 1); // 1 year license
+        console.log('[License Verify] Verifying license for:', { businessId, fingerprint });
 
-            return NextResponse.json({
-                key,
-                hwid,
-                activatedAt: new Date().toISOString(),
-                expiresAt: expiresAt.toISOString(),
-            });
-        }
+        // Mock a valid active license
+        const now = new Date();
+        const expiry = new Date();
+        expiry.setFullYear(now.getFullYear() + 1); // 1 year trial/license
 
-        return NextResponse.json({ error: 'Invalid license key' }, { status: 401 });
-    } catch (error) {
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+        return NextResponse.json({
+            success: true,
+            data: {
+                status: 'ACTIVE',
+                expiry: expiry.toISOString(),
+                serverTime: now.toISOString(),
+                plan: 'FREE_TRIAL'
+            }
+        });
+    } catch (error: any) {
+        console.error('[License Verify] Error:', error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 }
