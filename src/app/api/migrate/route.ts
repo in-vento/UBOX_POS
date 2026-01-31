@@ -157,7 +157,18 @@ export async function POST() {
                 "pseToken" TEXT,
                 "pseUrl" TEXT,
                 "pseRucUsuario" TEXT,
-                "updatedAt" DATETIME NOT NULL
+                "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+        // Fix for v0.3.38: Add SystemConfig table
+        await runQuery(`
+            CREATE TABLE IF NOT EXISTS "SystemConfig" (
+                "id" TEXT NOT NULL PRIMARY KEY DEFAULT 'default',
+                "cloudToken" TEXT,
+                "businessId" TEXT,
+                "fingerprint" TEXT,
+                "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
             )
         `);
 

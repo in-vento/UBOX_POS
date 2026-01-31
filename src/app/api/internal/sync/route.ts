@@ -17,6 +17,12 @@ export async function POST() {
         return NextResponse.json({ success: true, message: 'Sync process triggered' });
     } catch (error: any) {
         console.error('Internal sync API error:', error);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        // Include more details for debugging in the browser console
+        return NextResponse.json({
+            success: false,
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+            code: error.code // Prisma error codes are helpful
+        }, { status: 500 });
     }
 }
