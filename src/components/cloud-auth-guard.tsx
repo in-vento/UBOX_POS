@@ -47,6 +47,21 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
             if (token && businessId) {
                 setIsAuthenticated(true);
                 setSelectedBusinessId(businessId);
+
+                // Ensure DB has the config for background sync
+                try {
+                    await fetch('/api/system/config', {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            cloudToken: token,
+                            businessId: businessId
+                        })
+                    });
+                } catch (e) {
+                    console.error('Failed to sync config to DB on init', e);
+                }
+
                 setStep('device-check');
                 await checkDeviceStatus(businessId);
             } else if (token) {
@@ -146,7 +161,7 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    cloudToken: localStorage.getItem('cloud_token'),
+                    cloudToken: localStorage.getItem('auth_token'),
                     businessId: id
                 })
             });

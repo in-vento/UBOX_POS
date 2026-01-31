@@ -127,20 +127,20 @@ export default function WaiterPage() {
                 url += `?waiterId=${waiterId}`;
             }
 
-            console.log('🌐 Fetching orders from:', url);
+            // console.log('🌐 Fetching orders from:', url);
             const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
-                console.log('📥 Received orders:', data.length, 'orders');
-                console.log('📥 All orders:', data.map((o: Order) => ({
-                    id: o.id.slice(-6),
-                    customer: o.customer,
-                    status: o.status,
-                    waiterId: o.waiterId,
-                    waiter: o.waiter
-                })));
+                // console.log('📥 Received orders:', data.length, 'orders');
+                // console.log('📥 All orders:', data.map((o: Order) => ({
+                //     id: o.id.slice(-6),
+                //     customer: o.customer,
+                //     status: o.status,
+                //     waiterId: o.waiterId,
+                //     waiter: o.waiter
+                // })));
                 const pending = data.filter((o: Order) => o.status === 'Pending');
-                console.log('✅ Pending orders:', pending.length);
+                // console.log('✅ Pending orders:', pending.length);
                 setMyOrders(pending);
             }
         } catch (error) {

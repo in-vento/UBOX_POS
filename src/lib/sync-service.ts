@@ -11,7 +11,6 @@ export class SyncService {
      * Adds an item to the synchronization queue
      */
     static async addToQueue(entity: SyncEntity, entityId: string, action: SyncAction, payload: any) {
-
         try {
             await prisma.syncQueue.create({
                 data: {
@@ -35,7 +34,6 @@ export class SyncService {
      * Processes the pending items in the queue
      */
     static async processQueue() {
-
         if (this.isProcessing) return;
 
         const config = await prisma.systemConfig.findFirst({ where: { id: 'default' } });
@@ -138,11 +136,13 @@ export class SyncService {
                 }),
             });
 
+            console.log(`[SyncService] ${item.entity} Sync result:`, response.status, response.statusText);
+
             if (response.ok) {
                 console.log(`[SyncService] Successfully synced ${item.entity} ${item.entityId}`);
                 return true;
             } else {
-                const errorData = await response.json();
+                const errorData = await response.json().catch(() => ({}));
                 console.error(`[SyncService] Failed to sync ${item.entity} ${item.entityId}:`, errorData);
                 return false;
             }
@@ -165,6 +165,7 @@ export class SyncService {
         try {
             console.log('[SyncService] Starting data recovery...');
             const endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/recovery`;
+            console.log(`[SyncService] Recovering from: ${endpoint}`);
 
             const response = await fetch(endpoint, {
                 headers: {
@@ -173,7 +174,13 @@ export class SyncService {
                 },
             });
 
-            if (!response.ok) throw new Error('Failed to fetch recovery data');
+            console.log(`[SyncService] Recovery response:`, response.status);
+
+            if (!response.ok) {
+                const errJson = await response.json().catch(() => ({}));
+                console.error('[SyncService] Recovery failed with:', errJson);
+                throw new Error(errJson.error || 'Failed to fetch recovery data');
+            }
 
             const { data } = await response.json();
             const { products, staffUsers } = data;

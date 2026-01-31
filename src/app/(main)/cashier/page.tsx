@@ -1175,7 +1175,7 @@ export default function CashierPage() {
     useEffect(() => {
         const fetchShiftStart = async () => {
             try {
-                console.log('Fetching shift start logs...');
+                // console.log('Fetching shift start logs...');
                 const res = await fetch('/api/logs?action=SHIFT_CLOSE&limit=1', { cache: 'no-store' });
                 const resPending = await fetch('/api/logs?action=SHIFT_CLOSE_WITH_PENDING&limit=1', { cache: 'no-store' });
 
@@ -1183,7 +1183,7 @@ export default function CashierPage() {
 
                 if (res.ok) {
                     const logs = await res.json();
-                    console.log('SHIFT_CLOSE logs:', logs);
+                    // console.log('SHIFT_CLOSE logs:', logs);
                     if (logs && logs.length > 0) {
                         lastCloseTime = new Date(logs[0].timestamp);
                     }
@@ -1191,7 +1191,7 @@ export default function CashierPage() {
 
                 if (resPending.ok) {
                     const logs = await resPending.json();
-                    console.log('SHIFT_CLOSE_WITH_PENDING logs:', logs);
+                    // console.log('SHIFT_CLOSE_WITH_PENDING logs:', logs);
                     if (logs && logs.length > 0) {
                         const pendingTime = new Date(logs[0].timestamp);
                         if (!lastCloseTime || pendingTime > lastCloseTime) {
@@ -1200,7 +1200,7 @@ export default function CashierPage() {
                     }
                 }
 
-                console.log('Calculated shiftStartTime:', lastCloseTime);
+                // console.log('Calculated shiftStartTime:', lastCloseTime);
                 setShiftStartTime(lastCloseTime);
             } catch (error) {
                 console.error("Error fetching shift start time:", error);

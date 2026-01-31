@@ -110,7 +110,10 @@ function startNextServer() {
             NODE_ENV: 'production',
             DATABASE_URL: `file:${dbPath}`,
             ELECTRON_RUN_AS_NODE: '1',
-            NODE_PATH: vendorPath
+            NODE_PATH: vendorPath,
+            // Supabase credentials for sync
+            NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://pftrdefyezdybsoaemdp.supabase.co',
+            NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmdHJkZWZ5ZXpkeWJzb2FlbWRwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxNDA3MTQsImV4cCI6MjA4NDcxNjcxNH0.jbuTRDiM3SxyN9_FLx8SJCTQC7Pv5BbtmwZJWFAwkwc'
         };
 
         try {

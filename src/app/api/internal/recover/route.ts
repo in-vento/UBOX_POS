@@ -18,10 +18,12 @@ export async function POST() {
             }, { status: 500 });
         }
     } catch (error: any) {
+        // Improve error logging: Log the full error object, including stack trace if available.
+        // console.error typically handles logging the stack trace for Error objects.
         console.error('Data recovery API error:', error);
         return NextResponse.json({
             success: false,
-            error: error.message
+            error: error instanceof Error ? error.message : String(error) // Ensure a string message is always returned
         }, { status: 500 });
     }
 }

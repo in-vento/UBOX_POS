@@ -80,6 +80,28 @@ export default function SettingsPage() {
   const [masajistaNamePlural, setMasajistaNamePlural] = useState(config.masajistaRoleNamePlural);
   const [isSavingRoleNames, setIsSavingRoleNames] = useState(false);
 
+  // User info state
+  const [userInfo, setUserInfo] = useState<{ name: string; email: string } | null>(null);
+
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user_info');
+    if (storedUser) {
+      try {
+        setUserInfo(JSON.parse(storedUser));
+      } catch (e) {
+        console.error("Error parsing user info", e);
+      }
+    }
+  }, []);
+
+  const handleLogoutCloud = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('business_id');
+    localStorage.removeItem('user_info');
+    window.location.href = '/login';
+  };
+
+
   useEffect(() => {
     if (isAdmin) {
       fetchPrinters();
@@ -418,21 +440,26 @@ export default function SettingsPage() {
             <CardHeader>
               <CardTitle>Información del Perfil</CardTitle>
               <CardDescription>
-                Actualiza la información de tu cuenta.
+                Información de la cuenta vinculada a la nube.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6">
               <div className="grid gap-2">
                 <Label htmlFor="name">Nombre</Label>
-                <Input id="name" defaultValue="Super Admin" />
+                <Input id="name" value={userInfo?.name || "Super Admin"} readOnly className="bg-muted" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" defaultValue="admin@ubox.com" />
+                <Input id="email" type="email" value={userInfo?.email || "admin@ubox.com"} readOnly className="bg-muted" />
               </div>
             </CardContent>
-            <CardFooter className="border-t pt-6">
-              <Button>Guardar Cambios</Button>
+            <CardFooter className="border-t pt-6 flex flex-col items-center gap-4">
+              <p className="text-sm text-muted-foreground text-center">
+                Para cambiar tus datos o contraseña, utiliza el Panel de Control Web.
+              </p>
+              <Button variant="destructive" className="w-full" onClick={handleLogoutCloud}>
+                Cerrar Sesión de Dueño (Desvincular App)
+              </Button>
             </CardFooter>
           </Card>
         </div>

@@ -21,6 +21,7 @@ import {
   Loader2,
   Shield,
   FileText,
+  Cloud,
 } from 'lucide-react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
@@ -105,10 +106,19 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       'barman': 'Barman',
       'masajista': 'Masajista'
     };
+    const storedUser = typeof window !== 'undefined' ? localStorage.getItem('user_info') : null;
+    let cloudEmail = `${role}@ubox.com`;
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (parsed.email) cloudEmail = parsed.email;
+      } catch (e) { }
+    }
+
     return {
       name: userName || displayRoleParam || roleNames[role] || 'Usuario',
       displayRole: displayRoleParam || roleNames[role] || 'Usuario',
-      email: `${role}@ubox.com`,
+      email: cloudEmail,
       avatarUrl: undefined
     };
   }, [role, userName, displayRoleParam]);
@@ -146,9 +156,26 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <DropdownMenuItem asChild>
           <Link href={role === 'mozo' ? '/waiter-selection' : '/'} className="w-full text-left flex items-center">
             <LogOut className="mr-2 h-4 w-4" />
-            <span>Logout</span>
+            <span>Cerrar Sesión Local</span>
           </Link>
         </DropdownMenuItem>
+        {(role === 'admin' || role === 'boss') && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => {
+                localStorage.removeItem('auth_token');
+                localStorage.removeItem('business_id');
+                localStorage.removeItem('user_info');
+                window.location.href = '/login';
+              }}
+            >
+              <Cloud className="mr-2 h-4 w-4" />
+              <span>Desvincular Cuenta Cloud</span>
+            </DropdownMenuItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

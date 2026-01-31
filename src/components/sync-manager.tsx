@@ -15,7 +15,7 @@ export default function SyncManager() {
         };
 
         // Start background sync process
-        console.log('[SyncManager] Initializing background sync interval...');
+        // Initializing background sync interval...
 
         // Initial sync
         triggerSync();
@@ -28,7 +28,7 @@ export default function SyncManager() {
 
         // Also listen for online status to trigger sync
         const handleOnline = () => {
-            console.log('[SyncManager] Device is online. Triggering sync...');
+            // console.log('[SyncManager] Device is online. Triggering sync...');
             triggerSync();
         };
 
