@@ -181,13 +181,25 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
     const handleDataRecovery = async () => {
         setIsRecovering(true);
         try {
-            const { SyncService } = await import('@/lib/sync-service');
-            const success = await SyncService.recoverData();
-            if (success) {
+            const res = await fetch('/api/internal/recover', { method: 'POST' });
+            if (res.ok) {
                 toast({ title: "Datos Recuperados", description: "Se ha sincronizado la configuración del negocio." });
+            } else {
+                const error = await res.json();
+                console.error('Recovery failed on server:', error);
+                toast({
+                    title: "Error de Recuperación",
+                    description: "No se pudieron sincronizar los datos. Reintenta más tarde.",
+                    variant: "destructive"
+                });
             }
         } catch (error) {
-            console.error('Recovery failed', error);
+            console.error('Recovery network error', error);
+            toast({
+                title: "Error de Conexión",
+                description: "No se pudo contactar con el servidor de sincronización.",
+                variant: "destructive"
+            });
         } finally {
             setIsRecovering(false);
         }

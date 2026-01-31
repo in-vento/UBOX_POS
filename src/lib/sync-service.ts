@@ -11,11 +11,6 @@ export class SyncService {
      * Adds an item to the synchronization queue
      */
     static async addToQueue(entity: SyncEntity, entityId: string, action: SyncAction, payload: any) {
-        // Skip if running in browser
-        if (typeof window !== 'undefined') {
-            console.log('[SyncService] Skipping addToQueue in browser environment');
-            return;
-        }
 
         try {
             await prisma.syncQueue.create({
@@ -40,11 +35,6 @@ export class SyncService {
      * Processes the pending items in the queue
      */
     static async processQueue() {
-        // Skip if running in browser
-        if (typeof window !== 'undefined') {
-            console.log('[SyncService] Skipping sync in browser environment');
-            return;
-        }
 
         if (this.isProcessing) return;
 
