@@ -41,7 +41,8 @@ export class SyncService {
         const businessId = config?.businessId;
 
         if (!token || !businessId) {
-            console.log('[SyncService] No cloud token or business ID found in DB. Skipping sync.');
+            console.log('[SyncService] Skipping sync: Missing token or businessId in DB.');
+            // console.log(`[SyncService] Current DB Config - Token: ${token ? 'PRESENT' : 'MISSING'}, BusinessId: ${businessId || 'MISSING'}`);
             return;
         }
 
@@ -122,6 +123,9 @@ export class SyncService {
                 return true; // Mark as synced to avoid blocking the queue
             }
 
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
@@ -134,8 +138,10 @@ export class SyncService {
                     action: item.action,
                     data: payload,
                 }),
+                signal: controller.signal,
             });
 
+            clearTimeout(timeoutId);
             console.log(`[SyncService] ${item.entity} Sync result:`, response.status, response.statusText);
 
             if (response.ok) {
@@ -167,13 +173,18 @@ export class SyncService {
             const endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/recovery`;
             console.log(`[SyncService] Recovering from: ${endpoint}`);
 
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s timeout for recovery
+
             const response = await fetch(endpoint, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'X-Business-Id': businessId,
                 },
+                signal: controller.signal,
             });
 
+            clearTimeout(timeoutId);
             console.log(`[SyncService] Recovery response:`, response.status);
 
             if (!response.ok) {

@@ -107,7 +107,7 @@ export default function RegisterPage() {
 
         // Store selected business
         if (businessId) {
-          localStorage.setItem('current_business_id', businessId);
+          localStorage.setItem('business_id', businessId);
           localStorage.setItem('current_business_name', serverBusiness?.name || formData.businessName);
         }
 

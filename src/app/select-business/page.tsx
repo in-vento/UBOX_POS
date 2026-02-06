@@ -45,7 +45,7 @@ export default function SelectBusinessPage() {
 
     const handleSelectBusiness = (business: Business) => {
         // Store selected business context
-        localStorage.setItem('current_business_id', business.id);
+        localStorage.setItem('business_id', business.id);
         localStorage.setItem('current_business_name', business.name);
 
         toast({

@@ -50,7 +50,8 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
 
                 // Ensure DB has the config for background sync
                 try {
-                    await fetch('/api/system/config', {
+                    console.log('[CloudAuthGuard] Syncing config to local DB...');
+                    const configRes = await fetch('/api/system/config', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
@@ -58,8 +59,10 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
                             businessId: businessId
                         })
                     });
+                    if (!configRes.ok) throw new Error(`Config sync failed with status ${configRes.status}`);
+                    console.log('[CloudAuthGuard] Local config synced successfully');
                 } catch (e) {
-                    console.error('Failed to sync config to DB on init', e);
+                    console.error('[CloudAuthGuard] Failed to sync config to DB on init', e);
                 }
 
                 setStep('device-check');
@@ -157,16 +160,19 @@ export default function CloudAuthGuard({ children }: { children: React.ReactNode
 
         // Persist to DB for Server-side SyncService
         try {
+            const token = localStorage.getItem('auth_token');
+            console.log('[CloudAuthGuard] Persisting business config to DB after selection...');
             await fetch('/api/system/config', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    cloudToken: localStorage.getItem('auth_token'),
+                    cloudToken: token,
                     businessId: id
                 })
             });
+            console.log('[CloudAuthGuard] Config persisted successfully');
         } catch (e) {
-            console.error('Failed to persist config to DB', e);
+            console.error('[CloudAuthGuard] Failed to persist config to DB', e);
         }
 
         setStep('device-check');

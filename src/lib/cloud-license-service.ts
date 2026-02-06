@@ -28,14 +28,19 @@ export class LicenseService {
       const fingerprint = await getHWID();
       const endpoint = `${API_ENDPOINTS.AUTH.LOGIN.replace('/auth/login', '')}/license/verify`;
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 7000); // 7s timeout
+
       const response = await fetch(endpoint, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'X-Business-Id': businessId,
           'X-Device-Fingerprint': fingerprint
-        }
+        },
+        signal: controller.signal
       });
 
+      clearTimeout(timeoutId);
       const result = await response.json();
 
       if (response.ok && result.success) {

@@ -3,18 +3,11 @@ import { SyncService } from '@/lib/sync-service';
 
 export async function POST() {
     try {
-        // Trigger background sync
-        // We don't await this because we don't want to block the response
-        // However, in a serverless/Next.js route, we might need to await to ensure it runs?
-        // For Electron it's fine as it's a long-running Node process.
-        // But to be safe and report status, let's await a single pass.
+        // Trigger background sync without awaiting to free up the browser connection slot
+        SyncService.processQueue().catch(err => console.error('[SyncAPI] Background processQueue error:', err));
+        SyncService.syncConfigToCloud().catch(err => console.error('[SyncAPI] Background syncConfigToCloud error:', err));
 
-        await SyncService.processQueue();
-
-        // Also trigger config sync lightly
-        await SyncService.syncConfigToCloud();
-
-        return NextResponse.json({ success: true, message: 'Sync process triggered' });
+        return NextResponse.json({ success: true, message: 'Sync process triggered in background' });
     } catch (error: any) {
         console.error('Internal sync API error:', error);
         // Include more details for debugging in the browser console

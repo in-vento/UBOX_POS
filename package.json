@@ -1,6 +1,6 @@
 {
   "name": "nextn",
-  "version": "0.3.46",
+  "version": "0.3.47",
   "description": "Ubox POS - Point of Sale System",
   "author": "Ubox Team",
   "main": "electron/main.js",

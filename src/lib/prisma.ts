@@ -14,12 +14,19 @@ if (!globalForPrisma.prisma) {
 export const prisma =
     globalForPrisma.prisma ||
     new PrismaClient({
-        log: ['query', 'error', 'warn'],
+        log: ['error', 'warn'],
         datasources: {
             db: {
                 url: dbUrl,
             },
         },
     });
+
+// Enable WAL mode for SQLite to improve concurrency
+if (!globalForPrisma.prisma) {
+    prisma.$executeRawUnsafe('PRAGMA journal_mode=WAL;').catch(e => {
+        console.error('[Prisma] Failed to set WAL mode:', e);
+    });
+}
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
