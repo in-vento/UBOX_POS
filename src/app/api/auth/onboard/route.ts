@@ -17,31 +17,41 @@ export async function POST(req: Request) {
         }
 
         // 1. Create or update the local user
-        // We generally assume if they authenticated with Supabase, they are valid.
-        // In a real scenario, we might verify the supabaseToken with Supabase Admin API.
-        // For now, consistent with the "offline-first" approach and clock skew bypass,
-        // we trust the client's assertion if they passed the OAuth flow.
-
         let user = await prisma.user.findFirst({
             where: { email },
         });
 
         if (!user) {
             console.log('[Onboard] Creating new local user');
-            // Mock a PIN or requirement for new users?
-            // For now, create a default user.
             user = await prisma.user.create({
                 data: {
                     email,
                     name: name || email.split('@')[0],
-                    role: 'ADMIN', // Default first user to Admin? Or pending?
-                    // status: 'ACTIVE',
+                    role: 'ADMIN',
                 },
             });
         }
 
-        // 2. Generate a local session token
-        // In this local-first architecture, this token validates API requests to *this* Next.js server.
+        // 2. Save Cloud Configuration for Sync
+        // This is critical for the SyncService to start working
+        const { businessId } = body;
+        if (businessId || supabaseToken) {
+            console.log('[Onboard] Saving cloud configuration for sync');
+            await prisma.systemConfig.upsert({
+                where: { id: 'default' },
+                update: {
+                    cloudToken: supabaseToken,
+                    businessId: businessId,
+                },
+                create: {
+                    id: 'default',
+                    cloudToken: supabaseToken,
+                    businessId: businessId,
+                }
+            });
+        }
+
+        // 3. Generate a local session token
         const token = sign(
             {
                 userId: user.id,
@@ -62,7 +72,7 @@ export async function POST(req: Request) {
                     email: user.email,
                     name: user.name,
                     role: user.role,
-                    businesses: [] // Initialize empty businesses array for the UI
+                    businesses: []
                 }
             }
         });

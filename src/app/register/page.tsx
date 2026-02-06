@@ -73,7 +73,29 @@ export default function RegisterPage() {
 
       const result = await response.json();
 
-      if (response.ok) {
+      if (!response.ok) {
+        throw new Error(result.error?.message || "Error al registrar en el servidor");
+      }
+
+      // Get the businessId from the backend onboarding response
+      const serverBusiness = result.data.user.businesses?.[0]?.business;
+      const businessId = serverBusiness?.id;
+
+      // 3. Register with Local Internal Onboard to save SystemConfig
+      const localResponse = await fetch('/api/auth/onboard', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          supabaseToken: authData.session.access_token,
+          email: formData.email,
+          name: formData.name,
+          businessId: businessId,
+        }),
+      });
+
+      if (localResponse.ok) {
         toast({
           title: "Registro Exitoso",
           description: "Tu cuenta ha sido creada correctamente.",
@@ -83,18 +105,16 @@ export default function RegisterPage() {
         localStorage.setItem('auth_token', result.data.token);
         localStorage.setItem('user_info', JSON.stringify(result.data.user));
 
-        // Store registration context for plans page
-        localStorage.setItem('registration_data', JSON.stringify({
-          id: result.data.user.id,
-          name: formData.name,
-          email: formData.email,
-          businessName: formData.businessName
-        }));
+        // Store selected business
+        if (businessId) {
+          localStorage.setItem('current_business_id', businessId);
+          localStorage.setItem('current_business_name', serverBusiness?.name || formData.businessName);
+        }
 
         // Redirect to plans
         router.push('/plans');
       } else {
-        throw new Error(result.error?.message || "Error al registrar en el servidor");
+        throw new Error("Error al sincronizar configuración local");
       }
     } catch (error: any) {
       toast({
